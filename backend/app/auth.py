@@ -108,14 +108,17 @@ def _domain_boleh(email: str) -> bool:
 
 
 def _peran_awal(s: Session, email: str) -> str:
-    """Admin bila email ada di AUTOJURNAL_ADMIN_EMAILS, atau bila belum ada admin sama sekali (pengguna pertama)."""
-    if email.lower() in C.ADMIN_EMAILS:
-        return "admin"
+    """Bila AUTOJURNAL_ADMIN_EMAILS diisi, HANYA email itu yang menjadi admin.
+    Bila kosong, pengguna pertama menjadi admin (praktis untuk instalasi lokal)."""
+    if C.ADMIN_EMAILS:
+        return "admin" if email.lower() in C.ADMIN_EMAILS else "pengguna"
     ada_admin = s.exec(select(func.count()).select_from(Pengguna).where(Pengguna.peran == "admin")).one()
     return "pengguna" if ada_admin else "admin"
 
 
 def _masukkan(request: Request, s: Session, u: Pengguna) -> dict:
+    if u.email.lower() in C.ADMIN_EMAILS:
+        u.peran = "admin"  # email yang ditambahkan ke ADMIN_EMAILS belakangan ikut naik saat masuk
     u.terakhir_masuk = sekarang()
     s.add(u)
     s.commit()

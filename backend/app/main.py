@@ -479,6 +479,25 @@ def model_ai(m: TesAI, _: Pengguna = Admin_, s: Session = Depends(sesi)):
 # frontend (hasil build React) + fallback SPA
 
 
+# index.html selalu dicek ulang browser -> setelah UI di-update, pengguna langsung mendapat versi baru.
+# Berkas di /assets bernama hash (mis. index-Cv4cEMTg.js) sehingga aman di-cache lama.
+TANPA_CACHE = {"Cache-Control": "no-cache"}
+
+
+class AsetAbadi(StaticFiles):
+    async def get_response(self, path, scope):
+        r = await super().get_response(path, scope)
+        if r.status_code == 200:
+            r.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return r
+
+
+def _halaman_utama():
+    if (FRONTEND_DIST / "index.html").exists():
+        return FileResponse(FRONTEND_DIST / "index.html", headers=TANPA_CACHE)
+    return JSONResponse({"pesan": "Frontend belum di-build. Jalankan: cd frontend && npm install && npm run build"})
+
+
 @app.exception_handler(404)
 async def _tidak_ada(request, exc):
     if request.url.path.startswith("/api/") or not (FRONTEND_DIST / "index.html").exists():
@@ -486,16 +505,14 @@ async def _tidak_ada(request, exc):
         return JSONResponse({"detail": detail}, status_code=404)
     berkas = (FRONTEND_DIST / request.url.path.lstrip("/")).resolve()
     if berkas.is_file() and FRONTEND_DIST in berkas.parents:  # mis. /favicon.svg
-        return FileResponse(berkas)
-    return FileResponse(FRONTEND_DIST / "index.html")
+        return FileResponse(berkas, headers=TANPA_CACHE)
+    return _halaman_utama()
 
 
-if (FRONTEND_DIST / "assets").exists():
-    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+# check_dir=False: build UI boleh diunggah belakangan tanpa perlu restart server
+app.mount("/assets", AsetAbadi(directory=FRONTEND_DIST / "assets", check_dir=False), name="assets")
 
 
 @app.get("/", include_in_schema=False)
 def beranda():
-    if (FRONTEND_DIST / "index.html").exists():
-        return FileResponse(FRONTEND_DIST / "index.html")
-    return JSONResponse({"pesan": "Frontend belum di-build. Jalankan: cd frontend && npm install && npm run build"})
+    return _halaman_utama()

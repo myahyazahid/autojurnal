@@ -65,3 +65,15 @@ def test_masuk_dengan_google(monkeypatch):
         c.post("/api/auth/keluar")
         r = c.post("/api/auth/masuk", json={"email": "reviewer.asli@gmail.com", "sandi": "apa saja"})
         assert r.status_code == 401 and "Google" in r.json()["detail"]
+
+
+def test_admin_emails_mencegah_perebutan_admin(monkeypatch):
+    """Bila ADMIN_EMAILS diisi, orang asing yang mendaftar pertama TIDAK menjadi admin."""
+    import secrets as _s
+
+    monkeypatch.setattr(C, "ADMIN_EMAILS", ["pemilik@gmail.com"])
+    with TestClient(app) as asing, TestClient(app) as pemilik:
+        e1 = f"asing{_s.token_hex(4)}@gmail.com"
+        assert asing.post("/api/auth/daftar", json={"nama": "Asing", "email": e1, "sandi": "rahasia123"}).json()["peran"] == "pengguna"
+        r = pemilik.post("/api/auth/daftar", json={"nama": "Pemilik", "email": "pemilik@gmail.com", "sandi": "rahasia123"})
+        assert r.json()["peran"] == "admin"

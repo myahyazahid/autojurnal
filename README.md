@@ -72,7 +72,7 @@ backend/
   app/cli.py    cek banyak naskah dari terminal
   tests/        pytest dengan dokumen sintetis
 frontend/       React + Vite + Tailwind v4 (mode terang/gelap; form aturan dibangkitkan dari skema profil)
-deploy/         systemd, nginx, skrip pasang & perbarui VPS
+deploy/         contoh konfigurasi systemd & Nginx
 jalankan.bat    jalankan di Windows dengan dobel-klik
 ```
 
@@ -108,30 +108,45 @@ cd backend
 .venv/Scripts/python -m app.cli cek naskah.docx --jurnal "Jurnal SIBC"     # pakai profil dari database web
 ```
 
-## Deploy ke VPS (native, tanpa Docker — aman untuk VPS yang sudah berisi proyek lain)
+## Deploy ke VPS (manual, native tanpa Docker)
 
-Kebutuhan: Ubuntu/Debian dengan **Nginx** dan **Python 3.10+**, subdomain yang A-record-nya mengarah ke VPS.
+Di produksi hanya ada **satu proses**: Uvicorn (FastAPI) yang melayani API `/api/*` sekaligus tampilan web dari
+`frontend/dist`. Nginx meneruskan domain ke proses itu, systemd menjaganya tetap hidup. Node.js hanya dipakai untuk
+**build** tampilan di laptop; hasilnya (`frontend/dist`) ikut di-commit sehingga server tidak butuh Node.
+
+Pemasangan pertama (di folder hasil `git clone`, ganti `~/autojurnal` sesuai lokasimu):
 
 ```bash
-# laptop (Git Bash): kemas kode + tampilan web yang sudah di-build, lalu kirim
-cd frontend && npm run build && cd ../..
-tar -czf autojurnal.tar.gz --exclude=autojurnal/backend/.venv --exclude=autojurnal/frontend/node_modules     --exclude=autojurnal/data --exclude=autojurnal/.env --exclude=autojurnal/.git autojurnal
-scp autojurnal.tar.gz USER@IP_VPS:/tmp/
+cd ~/autojurnal/backend
+python3 -m venv .venv                       # butuh Python 3.10+ (bila gagal: sudo apt install python3-venv)
+.venv/bin/pip install -r requirements.txt
 
-# VPS
-sudo tar -xzf /tmp/autojurnal.tar.gz -C /opt
-sudo bash /opt/autojurnal/deploy/pasang-vps.sh autojurnal.redscale.my.id "" 8010
-sudo nano /opt/autojurnal/.env        # isi GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, AUTOJURNAL_ADMIN_EMAILS
-sudo systemctl restart autojurnal
+cd ~/autojurnal
+cp .env.example .env && chmod 600 .env
+nano .env        # AUTOJURNAL_BASE_URL=https://autojurnal.redscale.my.id, AUTOJURNAL_SECRET_KEY, GOOGLE_*, AUTOJURNAL_ADMIN_EMAILS
+
+# uji jalan sebentar (Ctrl+C untuk berhenti)
+cd backend && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010
+
+sudo nano /etc/systemd/system/autojurnal.service     # isi: deploy/autojurnal.service (ganti user & path)
+sudo systemctl daemon-reload && sudo systemctl enable --now autojurnal
+
+sudo nano /etc/nginx/sites-available/autojurnal      # isi: deploy/nginx-autojurnal.conf
+sudo ln -s /etc/nginx/sites-available/autojurnal /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d autojurnal.redscale.my.id
 ```
 
-`pasang-vps.sh` hanya **menambah**: user sistem `autojurnal`, `/opt/autojurnal`, `/var/lib/autojurnal`, layanan systemd
-`autojurnal` di port internal pilihan (bawaan 8010, dicek dulu tidak bentrok), satu site Nginx baru, dan sertifikat HTTPS untuk
-domain itu saja. Site Nginx lain tidak disentuh; bila `nginx -t` gagal, site baru dibatalkan otomatis.
+Update:
 
-Susunan: Nginx (HTTPS/certbot) → Uvicorn 2 worker (systemd `autojurnal`) → SQLite di `/var/lib/autojurnal`.
-Log: `journalctl -u autojurnal -f`. Update: kirim ulang tar lalu ekstrak (`.env` & data tidak tertimpa) + `systemctl restart autojurnal`,
-atau bila memakai git: `sudo bash /opt/autojurnal/deploy/perbarui.sh`.
+| Yang berubah | Laptop | Server |
+|---|---|---|
+| Tampilan (frontend) | `cd frontend && npm run build`, lalu commit (termasuk `frontend/dist`) & push | `git pull` — selesai, tanpa restart |
+| Kode Python (backend) | commit & push | `git pull` → `sudo systemctl restart autojurnal` |
+| `backend/requirements.txt` | commit & push | `git pull` → `backend/.venv/bin/pip install -r backend/requirements.txt` → restart |
+| `.env` | — | edit `.env` → restart |
+
+Data (SQLite + template + hasil) ada di `data/` dalam folder clone (tidak masuk git). Log: `journalctl -u autojurnal -f`.
 
 ## Catatan & batasan
 
