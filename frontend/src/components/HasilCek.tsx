@@ -1,8 +1,9 @@
 import {
   BadgeCheck, BookMarked, ChevronDown, Download, FileText, Files, Heading, Layers, LayoutTemplate, ListTree, MessageSquareText,
-  OctagonAlert, Pilcrow, Table2, Tags, TriangleAlert, Type, type LucideIcon,
+  OctagonAlert, Pilcrow, ShieldCheck, ShieldX, Table2, Tags, TriangleAlert, Type, type LucideIcon,
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, tanggal, type Cek, type HasilScope, type Ringkasan, type Temuan } from "../lib/api";
 import { Kartu, Lencana, Pesan, TautanTombol } from "./ui";
 
@@ -48,32 +49,76 @@ function vonis(wajib: number, saran: number) {
   return { latar: "bg-brand-soft", warna: "text-brand-tinta", ikon: OctagonAlert, judul: "Perlu revisi", sub: `${wajib} jenis pelanggaran wajib. Naskah belum sesuai template.` };
 }
 
-function KartuScope({ sc }: { sc: HasilScope }) {
-  if (sc.galat) return <Pesan jenis="peringatan" judul="Kesesuaian scope belum bisa dinilai">{sc.galat}</Pesan>;
-  const terima = sc.keputusan === "terima";
+/** Putusan kesesuaian Focus & Scope: elemen paling menonjol di halaman hasil. */
+function PutusanScope({ sc, jurnalId }: { sc: HasilScope | null | undefined; jurnalId: number | null }) {
+  const label = <p className="text-xs font-semibold text-ink-2">Kesesuaian Focus &amp; Scope</p>;
+  if (!sc || sc.alasan_tidak_dinilai || (!sc.keputusan && !sc.galat)) {
+    return (
+      <section className="flex h-full flex-col justify-center rounded-xl border border-dashed border-isian bg-panel p-5">
+        {label}
+        <h2 className="mt-1 font-serif text-2xl leading-tight font-semibold text-ink">Scope belum dinilai</h2>
+        <p className="mt-1.5 text-sm text-ink-2">{sc?.alasan_tidak_dinilai ?? "Pengecekan ini dibuat sebelum penilaian scope tersedia."}</p>
+        {jurnalId != null && sc?.alasan_tidak_dinilai?.includes("belum berisi") && (
+          <Link to={`/jurnal/${jurnalId}`} className="mt-3 w-fit text-sm font-semibold text-brand-tinta underline underline-offset-2">
+            Isi Focus &amp; Scope di profil jurnal
+          </Link>
+        )}
+      </section>
+    );
+  }
+  if (sc.galat) {
+    return (
+      <section className="flex h-full flex-col justify-center rounded-xl border border-waspada/30 bg-waspada-soft p-5">
+        {label}
+        <h2 className="mt-1 flex items-center gap-2 font-serif text-2xl leading-tight font-semibold text-ink">
+          <TriangleAlert className="h-5 w-5 shrink-0 text-waspada" aria-hidden /> Scope gagal dinilai
+        </h2>
+        <p className="mt-1.5 text-sm break-words text-ink-2">{sc.galat}</p>
+      </section>
+    );
+  }
+  const sesuai = sc.keputusan === "terima";
+  const Ikon = sesuai ? ShieldCheck : ShieldX;
   return (
-    <section className={`rounded-xl border p-5 ${terima ? "border-ok/30 bg-ok-soft" : "border-brand-garis bg-brand-soft"}`}>
+    <section className={`h-full rounded-xl border p-5 sm:p-6 ${sesuai ? "border-ok/30 bg-ok-soft" : "border-brand-garis bg-brand-soft"}`}>
       <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
-        <div className="min-w-0 flex-1 basis-72">
+        <div className="min-w-0 flex-1 basis-64">
           <p className="text-xs font-semibold text-ink-2">Kesesuaian Focus &amp; Scope, dinilai AI</p>
-          <h2 className={`mt-1 font-serif text-2xl leading-tight font-semibold ${terima ? "text-ok" : "text-brand-tinta"}`}>
-            {terima ? "Diterima: sesuai scope jurnal" : "Ditolak: di luar scope jurnal"}
+          <h2 className={`mt-1 flex items-center gap-2.5 font-serif text-[30px] leading-tight font-semibold sm:text-4xl ${sesuai ? "text-ok" : "text-brand-tinta"}`}>
+            <Ikon className="h-8 w-8 shrink-0" aria-hidden />
+            {sesuai ? "Sesuai scope" : "Tidak sesuai scope"}
           </h2>
-          {sc.alasan && <p className="mt-2 text-sm leading-relaxed text-ink">{sc.alasan}</p>}
-          {!!sc.bidang_cocok?.length && (
-            <p className="mt-2.5 text-xs text-ink-2"><span className="font-semibold text-ink">Bidang yang cocok: </span>{sc.bidang_cocok.join(", ")}</p>
-          )}
+          <p className="mt-1.5 text-sm font-semibold text-ink">Rekomendasi: {sesuai ? "terima" : "tolak"}</p>
         </div>
         {sc.skor != null && (
           <div className="w-32 shrink-0">
             <div className="font-serif text-3xl font-semibold text-ink tabular-nums">{sc.skor}<span className="text-base text-ink-2">/100</span></div>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-panel" role="img" aria-label={`Skor kesesuaian ${sc.skor} dari 100`}>
-              <div className={`h-full rounded-full ${terima ? "bg-ok" : "bg-brand-kuat"}`} style={{ width: `${sc.skor}%` }} />
+              <div className={`h-full rounded-full ${sesuai ? "bg-ok" : "bg-brand-kuat"}`} style={{ width: `${sc.skor}%` }} />
             </div>
             <div className="mt-1 text-xs text-ink-2">skor kesesuaian</div>
           </div>
         )}
       </div>
+      {sc.alasan && <p className="mt-4 text-[15px] leading-relaxed text-ink">{sc.alasan}</p>}
+      {!!sc.bidang_cocok?.length && (
+        <p className="mt-2.5 text-xs text-ink-2"><span className="font-semibold text-ink">Bidang yang cocok: </span>{sc.bidang_cocok.join(", ")}</p>
+      )}
+    </section>
+  );
+}
+
+/** Putusan format & struktur dari bot, berdampingan dengan putusan scope. */
+function PutusanFormat({ wajib, saran }: { wajib: number; saran: number }) {
+  const v = vonis(wajib, saran);
+  const Ikon = v.ikon;
+  return (
+    <section className={`flex h-full flex-col justify-center rounded-xl border border-line p-5 ${v.latar}`}>
+      <p className="text-xs font-semibold text-ink-2">Format &amp; struktur, dicek bot</p>
+      <h2 className="mt-1 flex items-center gap-2 font-serif text-2xl leading-tight font-semibold text-ink">
+        <Ikon className={`h-6 w-6 shrink-0 ${v.warna}`} aria-hidden /> {v.judul}
+      </h2>
+      <p className="mt-1.5 text-sm text-ink-2">{v.sub}</p>
     </section>
   );
 }
@@ -102,8 +147,6 @@ function BatangKategori({ grup }: { grup: Map<string, Masalah[]> }) {
 }
 
 function Ringkasan({ cek, r, grup, saranWeb }: { cek: Cek; r: Ringkasan; grup: Map<string, Masalah[]>; saranWeb: number }) {
-  const v = vonis(r.wajib, r.saran);
-  const Ikon = v.ikon;
   const st = cek.statistik;
   const angka: [string, number | string, boolean][] = [
     ["wajib diperbaiki", r.wajib, true],
@@ -124,14 +167,7 @@ function Ringkasan({ cek, r, grup, saranWeb }: { cek: Cek; r: Ringkasan; grup: M
     : [];
   return (
     <Kartu className="overflow-hidden">
-      <div className={`flex items-start gap-3 px-5 py-4 ${v.latar}`}>
-        <Ikon className={`mt-1 h-6 w-6 shrink-0 ${v.warna}`} aria-hidden />
-        <div className="min-w-0">
-          <h2 className="font-serif text-2xl leading-tight font-semibold text-ink">{v.judul}</h2>
-          <p className="mt-0.5 text-sm text-ink-2">{v.sub}</p>
-        </div>
-      </div>
-      <dl className="grid grid-cols-2 gap-px border-y border-line bg-line sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-px border-b border-line bg-line sm:grid-cols-4">
         {angka.map(([label, nilai, utama]) => (
           <div key={label} className="bg-panel px-5 py-3.5">
             <dt className="text-xs text-ink-2">{label}</dt>
@@ -279,7 +315,12 @@ export default function HasilCek({ cek }: { cek: Cek }) {
         )}
       </div>
 
-      {cek.scope && <KartuScope sc={cek.scope} />}
+      {r && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <PutusanScope sc={cek.scope} jurnalId={cek.jurnal_id} />
+          <PutusanFormat wajib={r.wajib} saran={r.saran} />
+        </div>
+      )}
       {cek.galat_ai && <Pesan jenis="peringatan" judul="Pengecekan AI gagal, hasil bot tetap lengkap">{cek.galat_ai}</Pesan>}
       {r && <Ringkasan cek={cek} r={r} grup={semuaGrup} saranWeb={saranWeb} />}
 

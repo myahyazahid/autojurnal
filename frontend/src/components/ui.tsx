@@ -1,4 +1,4 @@
-import { CircleCheck, FileUp, Info, LoaderCircle, OctagonAlert, TriangleAlert, type LucideIcon } from "lucide-react";
+import { CircleCheck, FileUp, Info, LoaderCircle, OctagonAlert, ShieldCheck, ShieldX, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
@@ -234,6 +234,20 @@ export function Avatar({ nama, foto, ukuran = 36 }: { nama: string; foto?: strin
     <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand-soft font-bold text-brand-tinta"
       style={{ width: ukuran, height: ukuran, fontSize: ukuran * 0.38 }}>
       {inisial}
+    </span>
+  );
+}
+
+/** Lencana putusan scope: isi warna penuh agar langsung terlihat di daftar. Warna tetap di kedua tema (teks putih ≥4.9:1). */
+export function LencanaScope({ keputusan, besar }: { keputusan?: "terima" | "tolak"; besar?: boolean }) {
+  if (!keputusan) return null;
+  const sesuai = keputusan === "terima";
+  const Ikon = sesuai ? ShieldCheck : ShieldX;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md font-semibold whitespace-nowrap text-white ${
+      besar ? "px-2 py-1 text-xs" : "px-2 py-0.5 text-[11px]"} ${sesuai ? "bg-[#1f7a4d]" : "bg-[#c4444a]"}`}>
+      <Ikon className={besar ? "h-3.5 w-3.5" : "h-3 w-3"} aria-hidden />
+      {sesuai ? "Sesuai scope" : "Tidak sesuai scope"}
     </span>
   );
 }

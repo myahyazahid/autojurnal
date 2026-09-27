@@ -5,7 +5,7 @@ import { api, relatif, type Cek } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 import HasilCek from "../components/HasilCek";
-import { JudulHalaman, Kartu, Kerangka, Kosong, Lencana, MemuatHalaman, Pesan, Sakelar, TautanTombol, Tombol } from "../components/ui";
+import { JudulHalaman, Kartu, Kerangka, Kosong, Lencana, LencanaScope, MemuatHalaman, Pesan, Sakelar, TautanTombol, Tombol } from "../components/ui";
 
 function HasilRingkas({ c }: { c: Cek }) {
   const r = c.ringkasan;
@@ -16,9 +16,6 @@ function HasilRingkas({ c }: { c: Cek }) {
       <Lencana jenis={r.wajib === 0 ? "sukses" : "wajib"}>{r.wajib === 0 ? "siap kirim" : `${r.wajib} wajib`}</Lencana>
       <Lencana jenis="saran">{r.saran} saran</Lencana>
       {c.pakai_ai && <Lencana jenis="ai">AI {r.ai}</Lencana>}
-      {c.scope?.keputusan && (
-        <Lencana jenis={c.scope.keputusan === "terima" ? "sukses" : "wajib"}>scope {c.scope.keputusan === "terima" ? "diterima" : "ditolak"}</Lencana>
-      )}
     </span>
   );
 }
@@ -48,8 +45,8 @@ export function Riwayat() {
   }, [data, cari]);
   const tersedia = tampil.filter((c) => pilih.has(c.id) && c.file_tersedia).map((c) => c.id);
   const kolom = semua
-    ? "md:grid-cols-[2rem_minmax(0,1.5fr)_minmax(0,1.3fr)_minmax(0,0.8fr)_7.5rem_9rem]"
-    : "md:grid-cols-[2rem_minmax(0,1.5fr)_minmax(0,1.3fr)_7.5rem_9rem]";
+    ? "lg:grid-cols-[2rem_minmax(0,1.5fr)_9.5rem_minmax(0,1.1fr)_minmax(0,0.8fr)_7rem_9rem]"
+    : "lg:grid-cols-[2rem_minmax(0,1.6fr)_9.5rem_minmax(0,1.2fr)_7rem_9rem]";
 
   async function hapus(c: Cek) {
     if (!confirm(`Hapus catatan pengecekan "${c.nama_file}" beserta berkas hasilnya?`)) return;
@@ -88,7 +85,7 @@ export function Riwayat() {
         />
       ) : (
         <Kartu>
-          <div className={`hidden items-center gap-x-4 border-b border-line px-4 py-2.5 text-xs font-semibold text-ink-2 md:grid ${kolom}`}>
+          <div className={`hidden items-center gap-x-4 border-b border-line px-4 py-2.5 text-xs font-semibold text-ink-2 lg:grid ${kolom}`}>
             <label className="inline-flex">
               <input
                 type="checkbox"
@@ -99,15 +96,16 @@ export function Riwayat() {
               />
             </label>
             <span>Naskah</span>
-            <span>Hasil</span>
+            <span>Scope</span>
+            <span>Format</span>
             {semua && <span>Pengguna</span>}
             <span>Waktu</span>
             <span className="sr-only">Aksi</span>
           </div>
           <ul className="divide-y divide-line">
             {tampil.map((c) => (
-              <li key={c.id} className={`grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 gap-y-2 px-4 py-3.5 md:items-center ${kolom}`}>
-                <label className={`ketuk inline-flex items-start pt-0.5 md:row-span-1 md:items-center md:pt-0 ${semua ? "row-span-4" : "row-span-3"}`}>
+              <li key={c.id} className={`grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 gap-y-2 px-4 py-3.5 lg:items-center ${kolom}`}>
+                <label className={`ketuk inline-flex items-start pt-0.5 lg:row-span-1 lg:items-center lg:pt-0 ${semua ? "row-span-5" : "row-span-4"}`}>
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-brand-kuat"
@@ -127,9 +125,12 @@ export function Riwayat() {
                   </Link>
                   <div className="truncate text-xs text-ink-2">{c.jurnal_nama}</div>
                 </div>
+                <div className="min-w-0">
+                  {c.scope?.keputusan ? <LencanaScope keputusan={c.scope.keputusan} besar /> : <span className="text-xs text-ink-2">scope belum dinilai</span>}
+                </div>
                 <div className="min-w-0"><HasilRingkas c={c} /></div>
                 {semua && <div className="truncate text-xs text-ink-2">{c.pengguna_nama || "(tanpa nama)"}</div>}
-                <div className="flex items-center justify-between gap-2 md:contents">
+                <div className="flex items-center justify-between gap-2 lg:contents">
                   <span className="text-xs whitespace-nowrap text-ink-2">{relatif(c.dibuat)}</span>
                   <span className="flex items-center justify-end gap-1">
                     {c.file_tersedia && <TautanTombol ukuran="kecil" varian="lembut" ikon={Download} href={api.urlUnduh(c.id)}>Unduh</TautanTombol>}
