@@ -1,20 +1,20 @@
-import { CircleCheck, FileUp, Info, LoaderCircle, OctagonAlert, ShieldCheck, ShieldX, TriangleAlert, type LucideIcon } from "lucide-react";
+import { ArrowLeft, CircleCheck, Info, LoaderCircle, OctagonAlert, ShieldCheck, ShieldX, TriangleAlert, Upload, type LucideIcon } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 type Varian = "utama" | "biasa" | "bahaya" | "hantu" | "lembut";
 
 const gayaTombol: Record<Varian, string> = {
-  utama: "bg-brand-kuat text-white hover:bg-brand-kuat-2 disabled:opacity-50",
-  biasa: "border border-line-2 bg-panel text-ink hover:border-isian hover:bg-panel-2 disabled:opacity-50",
-  bahaya: "border border-brand-garis bg-panel text-brand-tinta hover:bg-brand-soft disabled:opacity-50",
+  utama: "bg-brand text-white shadow-[0_1px_2px_rgba(15,23,41,0.12)] hover:bg-brand-2 disabled:opacity-50",
+  biasa: "border border-line-2 bg-panel text-ink shadow-[0_1px_2px_rgba(15,23,41,0.05)] hover:bg-panel-2 hover:border-isian disabled:opacity-50",
+  bahaya: "border border-line-2 bg-panel text-bahaya hover:border-bahaya/40 hover:bg-bahaya-soft disabled:opacity-50",
   hantu: "text-ink-2 hover:bg-panel-3 hover:text-ink disabled:opacity-40",
-  lembut: "bg-brand-soft text-brand-tinta hover:bg-brand-garis/70 disabled:opacity-50",
+  lembut: "bg-brand-soft text-brand-tinta hover:bg-brand-garis/60 disabled:opacity-50",
 };
 
 const ukuranTombol = {
-  kecil: "h-8 px-3 text-xs gap-1.5 rounded-md",
-  sedang: "h-10 px-4 text-sm gap-2 rounded-lg",
+  kecil: "h-8 px-2.5 text-xs gap-1.5 rounded-md",
+  sedang: "h-9 px-3.5 text-sm gap-2 rounded-lg",
   besar: "h-11 px-5 text-[15px] gap-2 rounded-lg",
 };
 
@@ -37,7 +37,7 @@ export function Tombol({
       aria-busy={memuat || undefined}
       className={`${dasarTombol} ${ukuranTombol[ukuran]} ${gayaTombol[varian]} ${className}`}
     >
-      {memuat ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden /> : Ikon ? <Ikon className="h-4 w-4" aria-hidden /> : null}
+      {memuat ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden /> : Ikon ? <Ikon className="h-4 w-4 shrink-0" aria-hidden /> : null}
       {children}
     </button>
   );
@@ -51,7 +51,7 @@ export function TautanTombol({ href, ke, children, varian = "biasa", ukuran = "s
   const kelas = `${dasarTombol} ${ukuranTombol[ukuran]} ${gayaTombol[varian]} ${className}`;
   const isi = (
     <>
-      {Ikon && <Ikon className="h-4 w-4" aria-hidden />}
+      {Ikon && <Ikon className="h-4 w-4 shrink-0" aria-hidden />}
       {children}
     </>
   );
@@ -59,7 +59,7 @@ export function TautanTombol({ href, ke, children, varian = "biasa", ukuran = "s
 }
 
 export function Putar({ besar, className = "" }: { besar?: boolean; className?: string }) {
-  return <LoaderCircle className={`animate-spin text-brand-kuat ${besar ? "h-6 w-6" : "h-4 w-4"} ${className}`} aria-hidden />;
+  return <LoaderCircle className={`animate-spin text-brand ${besar ? "h-6 w-6" : "h-4 w-4"} ${className}`} aria-hidden />;
 }
 
 export function MemuatHalaman({ teks = "Memuat…" }: { teks?: string }) {
@@ -71,28 +71,63 @@ export function MemuatHalaman({ teks = "Memuat…" }: { teks?: string }) {
   );
 }
 
-export function Kartu({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`kartu ${className}`}>{children}</div>;
+export function Kartu({ children, className = "", as: Tag = "div" }: { children: ReactNode; className?: string; as?: "div" | "section" }) {
+  return <Tag className={`kartu ${className}`}>{children}</Tag>;
 }
 
-export function JudulHalaman({ judul, sub, aksi, kecil }: { judul: ReactNode; sub?: ReactNode; aksi?: ReactNode; kecil?: ReactNode }) {
+/** Kepala kartu: judul kecil + keterangan + aksi di kanan, dipisah garis dari isi. */
+export function KepalaKartu({ judul, sub, aksi, id }: { judul: ReactNode; sub?: ReactNode; aksi?: ReactNode; id?: string }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-line px-5 py-4">
       <div className="min-w-0">
-        {kecil && <div className="mb-2 text-sm font-semibold text-ink-2">{kecil}</div>}
-        <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight text-ink sm:text-[32px]">{judul}</h1>
-        {sub && <p className="mt-1.5 max-w-2xl text-sm text-ink-2">{sub}</p>}
+        <h2 id={id} className="text-[15px] font-semibold text-ink">{judul}</h2>
+        {sub && <p className="mt-0.5 text-[13px] text-ink-2">{sub}</p>}
       </div>
-      {aksi && <div className="flex flex-wrap items-center gap-2">{aksi}</div>}
+      {aksi && <div className="flex shrink-0 flex-wrap items-center gap-2">{aksi}</div>}
     </div>
   );
 }
 
-/* Warna lencana hanya untuk status yang nyata: wajib (tinta merah), saran (kuning), siap (hijau). */
+/** Satu bagian halaman pengaturan: judul & penjelasan di kiri, isian di dalam kartu di kanan, tombol di kaki kartu. */
+export function BagianPengaturan({ judul, sub, children, kaki, id }: { judul: string; sub?: ReactNode; children: ReactNode; kaki?: ReactNode; id?: string }) {
+  return (
+    <section aria-labelledby={id} className="grid gap-4 border-b border-line py-8 first-of-type:pt-0 last-of-type:border-b-0 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-10">
+      <div>
+        <h2 id={id} className="text-[15px] font-semibold text-ink">{judul}</h2>
+        {sub && <div className="mt-1 text-sm leading-relaxed text-ink-2">{sub}</div>}
+      </div>
+      <div className="kartu min-w-0 overflow-hidden">
+        <div className="space-y-5 p-5 sm:p-6">{children}</div>
+        {kaki && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-panel-2 px-5 py-3 sm:px-6">{kaki}</div>}
+      </div>
+    </section>
+  );
+}
+
+export function JudulHalaman({ judul, sub, aksi, kembali }: { judul: ReactNode; sub?: ReactNode; aksi?: ReactNode; kembali?: { ke: string; label: string } }) {
+  return (
+    <div className="mb-6 sm:mb-8">
+      {kembali && (
+        <Link to={kembali.ke} className="mb-3 inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-ink-2 hover:text-ink">
+          <ArrowLeft className="h-4 w-4" aria-hidden /> {kembali.label}
+        </Link>
+      )}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl leading-tight font-bold tracking-tight text-ink sm:text-[28px]">{judul}</h1>
+          {sub && <p className="mt-1.5 max-w-2xl text-[15px] text-ink-2">{sub}</p>}
+        </div>
+        {aksi && <div className="flex flex-wrap items-center gap-2">{aksi}</div>}
+      </div>
+    </div>
+  );
+}
+
+/* Warna lencana hanya untuk status nyata: wajib (merah), saran (kuning), siap (hijau). */
 const gayaLencana = {
-  wajib: "bg-brand-soft text-brand-tinta",
+  wajib: "bg-bahaya-soft text-bahaya",
   saran: "bg-waspada-soft text-waspada",
-  ai: "bg-panel text-ink ring-1 ring-inset ring-isian",
+  ai: "bg-brand-soft text-brand-tinta",
   netral: "bg-panel-3 text-ink-2",
   sukses: "bg-ok-soft text-ok",
   info: "bg-panel-3 text-ink",
@@ -100,9 +135,23 @@ const gayaLencana = {
 
 export function Lencana({ jenis = "netral", children, ikon: Ikon }: { jenis?: keyof typeof gayaLencana; children: ReactNode; ikon?: LucideIcon }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${gayaLencana[jenis]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap ${gayaLencana[jenis]}`}>
       {Ikon && <Ikon className="h-3 w-3" aria-hidden />}
       {children}
+    </span>
+  );
+}
+
+/** Lencana putusan scope: isi warna penuh agar langsung terlihat di daftar. Warna tetap di kedua tema (teks putih ≥5.6:1). */
+export function LencanaScope({ keputusan, besar }: { keputusan?: "terima" | "tolak"; besar?: boolean }) {
+  if (!keputusan) return null;
+  const sesuai = keputusan === "terima";
+  const Ikon = sesuai ? ShieldCheck : ShieldX;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md font-semibold whitespace-nowrap text-white ${
+      besar ? "px-2 py-1 text-xs" : "px-1.5 py-0.5 text-[11px]"} ${sesuai ? "bg-[#157347]" : "bg-[#c22e3a]"}`}>
+      <Ikon className={besar ? "h-3.5 w-3.5" : "h-3 w-3"} aria-hidden />
+      {sesuai ? "Sesuai scope" : "Tidak sesuai scope"}
     </span>
   );
 }
@@ -110,7 +159,7 @@ export function Lencana({ jenis = "netral", children, ikon: Ikon }: { jenis?: ke
 const gayaPesan = {
   info: { k: "border-line bg-panel-2", i: Info, w: "text-ink-2" },
   peringatan: { k: "border-waspada/25 bg-waspada-soft", i: TriangleAlert, w: "text-waspada" },
-  galat: { k: "border-brand-garis bg-brand-soft", i: OctagonAlert, w: "text-brand-tinta" },
+  galat: { k: "border-bahaya/25 bg-bahaya-soft", i: OctagonAlert, w: "text-bahaya" },
   sukses: { k: "border-ok/25 bg-ok-soft", i: CircleCheck, w: "text-ok" },
 };
 
@@ -144,33 +193,37 @@ export function Sakelar({ nyala, ubah, label, keterangan, nonaktif, labelAria }:
         aria-describedby={keterangan ? `${id}-ket` : undefined}
         disabled={nonaktif}
         onClick={() => ubah(!nyala)}
-        className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors before:absolute before:-inset-2.5 before:content-[''] disabled:cursor-not-allowed ${nyala ? "bg-brand-kuat" : "bg-isian"}`}
+        className={`relative mt-px inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors before:absolute before:-inset-3 before:content-[''] disabled:cursor-not-allowed ${nyala ? "bg-brand" : "bg-isian"}`}
       >
-        <span className={`absolute h-5 w-5 rounded-full bg-white shadow-sm transition-[left] ${nyala ? "left-[22px]" : "left-0.5"}`} />
+        <span className={`absolute h-4 w-4 rounded-full bg-white shadow-sm transition-[left] ${nyala ? "left-[18px]" : "left-0.5"}`} />
       </button>
       {(label || keterangan) && (
         <span className="min-w-0">
           {label && <label htmlFor={id} className={`block text-sm font-semibold text-ink ${nonaktif ? "cursor-not-allowed" : "cursor-pointer"}`}>{label}</label>}
-          {keterangan && <span id={`${id}-ket`} className="mt-0.5 block text-xs text-ink-2">{keterangan}</span>}
+          {keterangan && <span id={`${id}-ket`} className="mt-0.5 block text-[13px] text-ink-2">{keterangan}</span>}
         </span>
       )}
     </div>
   );
 }
 
-export function Kosong({ judul, sub, aksi, ikon: Ikon }: { judul: string; sub?: ReactNode; aksi?: ReactNode; ikon?: LucideIcon }) {
+export function Kosong({ judul, sub, aksi, ikon: Ikon, ringkas }: { judul: string; sub?: ReactNode; aksi?: ReactNode; ikon?: LucideIcon; ringkas?: boolean }) {
   return (
-    <div className="rounded-xl border border-dashed border-line-2 bg-panel px-6 py-12 text-center">
-      {Ikon && <Ikon className="mx-auto mb-3 h-6 w-6 text-ink-3" aria-hidden />}
-      <div className="font-serif text-lg font-semibold text-ink">{judul}</div>
-      {sub && <div className="mx-auto mt-1.5 max-w-md text-sm text-ink-2">{sub}</div>}
+    <div className={`kartu flex flex-col items-center px-6 text-center ${ringkas ? "py-10" : "py-14"}`}>
+      {Ikon && (
+        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-tinta">
+          <Ikon className="h-6 w-6" aria-hidden />
+        </span>
+      )}
+      <div className="text-base font-semibold text-ink">{judul}</div>
+      {sub && <div className="mt-1.5 max-w-md text-sm text-ink-2">{sub}</div>}
       {aksi && <div className="mt-5 flex flex-wrap justify-center gap-2">{aksi}</div>}
     </div>
   );
 }
 
-export function ZonaUnggah({ ganda, terima = ".docx", pilih, label, sub, ringkas }: {
-  ganda?: boolean; terima?: string; pilih: (f: File[]) => void; label: string; sub?: string; ringkas?: boolean;
+export function ZonaUnggah({ ganda, terima = ".docx", pilih, label, sub, ringkas, className = "" }: {
+  ganda?: boolean; terima?: string; pilih: (f: File[]) => void; label: string; sub?: string; ringkas?: boolean; className?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [seret, setSeret] = useState(false);
@@ -197,13 +250,22 @@ export function ZonaUnggah({ ganda, terima = ".docx", pilih, label, sub, ringkas
         const f = Array.from(e.dataTransfer.files);
         if (f.length) pilih(ganda ? f : f.slice(0, 1));
       }}
-      className={`flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed text-center transition-colors ${
-        ringkas ? "px-4 py-5" : "px-6 py-10"
-      } ${seret ? "border-brand-kuat bg-brand-soft" : "border-isian bg-panel hover:border-brand-kuat hover:bg-brand-soft/50"}`}
+      className={`group flex cursor-pointer items-center rounded-xl border-2 border-dashed transition-colors ${
+        ringkas ? "gap-3 px-4 py-3.5 text-left" : "flex-col justify-center px-6 py-10 text-center sm:py-12"
+      } ${seret ? "border-brand bg-brand-soft" : "border-line-2 bg-panel-2 hover:border-brand/60 hover:bg-brand-soft/60"} ${className}`}
     >
-      <FileUp className={`mb-2 text-brand-tinta ${ringkas ? "h-5 w-5" : "h-7 w-7"}`} aria-hidden />
-      <div className="text-sm font-semibold text-ink">{label}</div>
-      {sub && <div className="mt-1 text-xs text-ink-3">{sub}</div>}
+      <span className={`flex shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-tinta ring-1 ring-brand-garis ${ringkas ? "h-9 w-9" : "mb-4 h-12 w-12"}`}>
+        <Upload className={ringkas ? "h-4 w-4" : "h-5 w-5"} aria-hidden />
+      </span>
+      <span className="min-w-0">
+        <span className={`block font-semibold text-ink ${ringkas ? "text-sm" : "text-base"}`}>{label}</span>
+        {sub && <span className={`block text-ink-2 ${ringkas ? "text-xs" : "mt-1 text-sm"}`}>{sub}</span>}
+      </span>
+      {!ringkas && (
+        <span className="mt-5 inline-flex h-9 items-center rounded-lg border border-line-2 bg-panel px-3.5 text-sm font-semibold text-ink shadow-[0_1px_2px_rgba(15,23,41,0.05)] group-hover:border-isian">
+          Pilih berkas
+        </span>
+      )}
       <input
         ref={ref}
         type="file"
@@ -221,6 +283,35 @@ export function ZonaUnggah({ ganda, terima = ".docx", pilih, label, sub, ringkas
   );
 }
 
+/** Motif berkas: lembar dengan sudut terlipat, bentuk yang sama dengan logo. Dipakai di setiap tempat yang menampilkan berkas. */
+export function IkonBerkas({ ukuran = 32, redup }: { ukuran?: number; redup?: boolean }) {
+  return (
+    <svg viewBox="0 0 32 40" style={{ width: ukuran * 0.8, height: ukuran }} className="shrink-0" aria-hidden>
+      <path d="M4 1.5h16.5L30.5 11.5V37a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 37V3A1.5 1.5 0 0 1 4 1.5z"
+        fill={redup ? "var(--c-panel-3)" : "var(--c-brand-soft)"} stroke={redup ? "var(--c-line-2)" : "var(--c-brand-garis)"} strokeWidth="1.5" />
+      <path d="M20.5 1.5V10a1.5 1.5 0 0 0 1.5 1.5h8.5" fill="none" stroke={redup ? "var(--c-line-2)" : "var(--c-brand-garis)"} strokeWidth="1.5" />
+      <rect x="7" y="19" width="16" height="2.2" rx="1.1" fill={redup ? "var(--c-line-2)" : "var(--c-grafik)"} opacity={redup ? 1 : 0.55} />
+      <rect x="7" y="24.5" width="12" height="2.2" rx="1.1" fill={redup ? "var(--c-line-2)" : "var(--c-grafik)"} opacity={redup ? 1 : 0.35} />
+      <rect x="7" y="30" width="14" height="2.2" rx="1.1" fill={redup ? "var(--c-line-2)" : "var(--c-grafik)"} opacity={redup ? 1 : 0.35} />
+    </svg>
+  );
+}
+
+/** Deretan angka ringkas dalam satu kartu, dipisah garis tipis. Angka nyata dari API, bukan hiasan. */
+export function StripAngka({ butir, className = "" }: { butir: { label: string; nilai: ReactNode; ket?: ReactNode; aksen?: "bahaya" }[]; className?: string }) {
+  return (
+    <dl className={`kartu grid grid-cols-2 overflow-hidden sm:grid-cols-4 ${className}`}>
+      {butir.map((b, i) => (
+        <div key={b.label} className={`px-5 py-4 ${i % 2 === 1 ? "border-l border-line" : ""} ${i >= 2 ? "border-t border-line sm:border-t-0" : ""} ${i === 2 ? "sm:border-l" : ""}`}>
+          <dt className="text-[13px] font-medium text-ink-2">{b.label}</dt>
+          <dd className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${b.aksen === "bahaya" ? "text-bahaya" : "text-ink"}`}>{b.nilai}</dd>
+          {b.ket && <dd className="mt-0.5 text-xs text-ink-3">{b.ket}</dd>}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function Avatar({ nama, foto, ukuran = 36 }: { nama: string; foto?: string; ukuran?: number }) {
   const [gagal, setGagal] = useState(false);
   const inisial = nama.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
@@ -231,23 +322,9 @@ export function Avatar({ nama, foto, ukuran = 36 }: { nama: string; foto?: strin
     );
   }
   return (
-    <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand-soft font-bold text-brand-tinta"
+    <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand-soft font-semibold text-brand-tinta"
       style={{ width: ukuran, height: ukuran, fontSize: ukuran * 0.38 }}>
       {inisial}
-    </span>
-  );
-}
-
-/** Lencana putusan scope: isi warna penuh agar langsung terlihat di daftar. Warna tetap di kedua tema (teks putih ≥4.9:1). */
-export function LencanaScope({ keputusan, besar }: { keputusan?: "terima" | "tolak"; besar?: boolean }) {
-  if (!keputusan) return null;
-  const sesuai = keputusan === "terima";
-  const Ikon = sesuai ? ShieldCheck : ShieldX;
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-md font-semibold whitespace-nowrap text-white ${
-      besar ? "px-2 py-1 text-xs" : "px-2 py-0.5 text-[11px]"} ${sesuai ? "bg-[#1f7a4d]" : "bg-[#c4444a]"}`}>
-      <Ikon className={besar ? "h-3.5 w-3.5" : "h-3 w-3"} aria-hidden />
-      {sesuai ? "Sesuai scope" : "Tidak sesuai scope"}
     </span>
   );
 }
@@ -267,14 +344,14 @@ export function LogoGoogle({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-/** Logo yang sudah ada (dokumen + centang), diwarnai ulang merah lembut. Warna tetap di kedua tema. */
+/** Logo yang sudah ada (dokumen + centang), diwarnai biru. Warna tetap di kedua tema. */
 export function LogoAutoJurnal({ ukuran = 36 }: { ukuran?: number }) {
   return (
     <svg viewBox="0 0 32 32" style={{ width: ukuran, height: ukuran }} className="shrink-0" aria-hidden>
-      <rect width="32" height="32" rx="7" fill="#e06a6a" />
+      <rect width="32" height="32" rx="8" fill="#2456d3" />
       <path d="M11 6.5h8.5l4.5 4.5v13.5a1.5 1.5 0 0 1-1.5 1.5H11a1.5 1.5 0 0 1-1.5-1.5V8A1.5 1.5 0 0 1 11 6.5z" fill="#fff" />
-      <path d="M19.5 6.5V11H24" fill="#fceeee" />
-      <path d="M12.8 17.4l2.8 2.8 5.4-5.9" stroke="#a8323a" strokeWidth="2.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M19.5 6.5V11H24" fill="#dbe5ff" />
+      <path d="M12.8 17.4l2.8 2.8 5.4-5.9" stroke="#2456d3" strokeWidth="2.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

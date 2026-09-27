@@ -70,14 +70,14 @@ export default function PemilihModel({ nilai, ubah, daftar, memuat, galat, muatU
         {memuat ? <Putar /> : <ChevronDown className={`h-4 w-4 shrink-0 text-ink-2 transition-transform ${buka ? "rotate-180" : ""}`} aria-hidden />}
       </button>
       <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-ink-2">
-        <span className="min-w-0">{galat ? <span className="text-brand-tinta">{galat}</span> : daftar.length ? `${daftar.length} model tersedia` : "Isi Base URL & API key, lalu muat daftar model."}</span>
+        <span className="min-w-0">{galat ? <span className="text-bahaya">{galat}</span> : daftar.length ? `${daftar.length} model tersedia` : "Isi Base URL & API key, lalu muat daftar model."}</span>
         <button type="button" onClick={muatUlang} className="ketuk inline-flex shrink-0 items-center gap-1 font-semibold text-brand-tinta underline-offset-2 hover:underline">
           <RefreshCw className={`h-3 w-3 ${memuat ? "animate-spin" : ""}`} aria-hidden /> Muat ulang
         </button>
       </div>
 
       {buka && (
-        <div className="melayang absolute inset-x-0 top-12 z-30 overflow-hidden">
+        <div className="melayang absolute inset-x-0 top-11 z-30 overflow-hidden">
           <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
             <Search className="h-4 w-4 shrink-0 text-ink-2" aria-hidden />
             <input
@@ -101,7 +101,7 @@ export default function PemilihModel({ nilai, ubah, daftar, memuat, galat, muatU
             {memuat && !daftar.length ? (
               <div role="status" className="flex items-center gap-2 px-3 py-6 text-sm text-ink-2"><Putar /> Mengambil daftar model…</div>
             ) : galat && !daftar.length ? (
-              <div className="px-3 py-6 text-sm text-brand-tinta">{galat}</div>
+              <div className="px-3 py-6 text-sm text-bahaya">{galat}</div>
             ) : jumlah === 0 ? (
               <div className="px-3 py-6 text-sm text-ink-2">
                 {cari ? <>Tidak ada yang cocok. Tekan <b>Enter</b> untuk memakai “{cari}”.</> : "Daftar model kosong. Tekan Muat ulang setelah Base URL terisi."}

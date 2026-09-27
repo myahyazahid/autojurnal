@@ -1,34 +1,42 @@
-import { Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Check, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { api, type KonfigurasiAuth } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { LogoAutoJurnal, LogoGoogle, Pesan, Tombol } from "../components/ui";
+import { IkonBerkas, Lencana, LogoAutoJurnal, LogoGoogle, Pesan, Tombol } from "../components/ui";
 
 const FAKTA = [
-  { judul: "Aturan dibaca dari template", isi: "Margin, font, struktur bagian, jumlah kata abstrak, sampai ketentuan referensi diambil dari template .docx jurnal." },
-  { judul: "Komentar langsung di Word", isi: "Setiap ketidaksesuaian ditulis sebagai komentar atas nama akun Anda. Penulis tinggal membuka berkasnya." },
-  { judul: "Bot dulu, AI bila diminta", isi: "Format dicek bot secara pasti. AI hanya dipakai bila diaktifkan, untuk menilai isi seperti research gap." },
+  "Aturan dibaca dari template .docx jurnal: margin, font, struktur, sampai referensi.",
+  "Setiap ketidaksesuaian ditulis sebagai komentar Word atas nama akun Anda.",
+  "Format dicek bot secara pasti. AI hanya dipakai bila diaktifkan.",
 ];
 
-/** Contoh keluaran: potongan naskah dengan satu komentar Word. Pesannya memakai format asli dari mesin pemeriksa. */
-function ContohKomentar() {
+/** Contoh keluaran, diberi label jelas. Pesannya memakai format asli dari mesin pemeriksa. */
+function ContohHasil() {
+  const baris: ["wajib" | "saran", string][] = [
+    ["wajib", "Abstrak terdiri atas 174 kata; seharusnya 200–250 kata."],
+    ["wajib", "Jumlah referensi 8, minimal 15."],
+    ["saran", "Kata kunci sebaiknya huruf kecil (kecuali singkatan): Wisata, Website."],
+  ];
   return (
-    <figure className="max-w-xl">
-      <div className="grid gap-3 sm:grid-cols-[1fr_15rem]">
-        <div className="rounded-lg border border-brand-garis bg-panel p-5">
-          <div className="font-serif text-sm font-bold text-ink">Abstrak</div>
-          <p className="mt-2 font-serif text-[15px] leading-relaxed text-ink-2">
-            <mark className="rounded-sm bg-brand-soft px-0.5 text-ink">Penelitian ini menganalisis pengaruh literasi digital</mark> terhadap kinerja guru
-            sekolah dasar. Data dikumpulkan melalui kuesioner dan dianalisis dengan regresi linear.
-          </p>
+    <figure className="melayang w-full max-w-md overflow-hidden text-ink">
+      <figcaption className="border-b border-line bg-panel-2 px-4 py-2 text-xs font-medium text-ink-2">Contoh hasil pemeriksaan</figcaption>
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <IkonBerkas ukuran={30} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold">naskah-artikel.docx</div>
+          <div className="text-xs text-ink-2">2 wajib · 1 saran</div>
         </div>
-        <div className="self-start rounded-lg border border-line bg-panel p-3.5">
-          <div className="text-xs font-semibold text-ink">Nama akun Anda</div>
-          <p className="mt-1 text-[13px] leading-snug text-ink-2">Abstrak terdiri atas 174 kata; seharusnya 200–250 kata.</p>
-        </div>
+        <Lencana jenis="wajib">Revisi minor</Lencana>
       </div>
-      <figcaption className="mt-3 text-xs text-ink-2">Contoh komentar yang ditulis ke salinan naskah.</figcaption>
+      <ul className="divide-y divide-line border-t border-line">
+        {baris.map(([t, p]) => (
+          <li key={p} className="flex items-start gap-2.5 px-4 py-2.5 text-[13px] leading-snug">
+            <Lencana jenis={t}>{t === "wajib" ? "Wajib" : "Saran"}</Lencana>
+            <span className="text-ink-2">{p}</span>
+          </li>
+        ))}
+      </ul>
     </figure>
   );
 }
@@ -70,73 +78,41 @@ export default function Masuk() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-      {/* ---------- penjelasan produk (desktop) ---------- */}
-      <div className="hidden border-r border-brand-garis bg-brand-soft lg:block">
-        <div className="flex min-h-screen flex-col gap-12 p-12 xl:p-16">
-          <div className="flex items-center gap-3">
-            <LogoAutoJurnal ukuran={36} />
-            <span className="font-serif text-xl font-semibold tracking-tight">AutoJurnal</span>
-          </div>
-
-          <div className="my-auto space-y-10">
-            <div className="max-w-xl">
-              <h1 className="font-serif text-[40px] leading-[1.15] font-semibold tracking-tight text-ink xl:text-[46px]">
-                Naskah rapi <span className="coret-merah">sesuai template</span>, sebelum reviewer membacanya.
-              </h1>
-              <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-ink-2">
-                Unggah template jurnal sekali. Setelah itu setiap naskah .docx dikembalikan sebagai salinan berkomentar di bagian yang belum sesuai.
-              </p>
-            </div>
-            <ContohKomentar />
-            <dl className="grid max-w-2xl gap-6 border-t border-brand-garis pt-6 xl:grid-cols-3">
-              {FAKTA.map((f) => (
-                <div key={f.judul}>
-                  <dt className="text-sm font-semibold text-ink">{f.judul}</dt>
-                  <dd className="mt-1 text-[13px] leading-relaxed text-ink-2">{f.isi}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </div>
-      </div>
-
+    <div className="grid min-h-screen bg-panel lg:grid-cols-2">
       {/* ---------- formulir ---------- */}
-      <div className="flex items-center justify-center px-4 py-10 sm:px-10">
-        <div className="w-full max-w-[400px]">
-          <div className="mb-8 lg:hidden">
-            <div className="flex items-center gap-3">
-              <LogoAutoJurnal ukuran={36} />
-              <span className="font-serif text-xl font-semibold tracking-tight">AutoJurnal</span>
-            </div>
-            <p className="mt-3 text-sm text-ink-2">Cek naskah .docx sesuai template jurnal, hasilnya berupa komentar Word.</p>
-          </div>
-          <h2 className="font-serif text-[30px] leading-tight font-semibold tracking-tight">{mode === "masuk" ? "Masuk" : "Buat akun"}</h2>
-          <p className="mt-1.5 text-sm text-ink-2">
-            {mode === "masuk" ? "Masuk untuk memeriksa naskah dan melihat riwayat Anda." : "Nama akun dipakai sebagai penulis komentar di naskah."}
+      <div className="flex flex-col px-4 py-6 sm:px-10 lg:px-16">
+        <div className="flex items-center gap-2.5">
+          <LogoAutoJurnal ukuran={32} />
+          <span className="text-lg font-bold tracking-tight">AutoJurnal</span>
+        </div>
+
+        <div className="mx-auto flex w-full max-w-[380px] flex-1 flex-col justify-center py-10">
+          <h1 className="text-[28px] leading-tight font-bold tracking-tight">{mode === "masuk" ? "Masuk ke AutoJurnal" : "Buat akun"}</h1>
+          <p className="mt-2 text-[15px] text-ink-2">
+            {mode === "masuk" ? "Periksa naskah dan lihat riwayat pengecekan Anda." : "Nama akun dipakai sebagai penulis komentar di naskah."}
           </p>
 
-          <div className="mt-7 space-y-4">
+          <div className="mt-8 space-y-5">
             {galat && <Pesan jenis="galat">{galat}</Pesan>}
 
             {konf?.google ? (
               <a
                 href="/api/auth/google"
-                className="ketuk flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-line-2 bg-panel text-[15px] font-semibold text-ink transition-colors hover:border-isian hover:bg-panel-2"
+                className="ketuk flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-line-2 bg-panel text-sm font-semibold text-ink shadow-[0_1px_2px_rgba(15,23,41,0.05)] transition-colors hover:bg-panel-2"
               >
                 <LogoGoogle /> {mode === "masuk" ? "Masuk" : "Daftar"} dengan Google
               </a>
             ) : (
               <div>
-                <button type="button" disabled className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-3 rounded-lg border border-line-2 bg-panel text-[15px] font-semibold text-ink opacity-55">
+                <button type="button" disabled className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-3 rounded-lg border border-line-2 bg-panel-2 text-sm font-semibold text-ink-2">
                   <LogoGoogle /> {mode === "masuk" ? "Masuk" : "Daftar"} dengan Google
                 </button>
-                {konf && <p className="mt-1.5 text-center text-xs text-ink-2">Login Google belum aktif. Admin perlu mengisi GOOGLE_CLIENT_ID di .env.</p>}
+                {konf && <p className="mt-2 text-xs text-ink-2">Login Google belum aktif. Admin perlu mengisi GOOGLE_CLIENT_ID di .env.</p>}
               </div>
             )}
 
-            <div className="flex items-center gap-3 text-xs font-medium text-ink-2">
-              <span className="h-px flex-1 bg-line-2" /> atau dengan email <span className="h-px flex-1 bg-line-2" />
+            <div className="flex items-center gap-3 text-xs font-medium text-ink-3">
+              <span className="h-px flex-1 bg-line" /> atau dengan email <span className="h-px flex-1 bg-line" />
             </div>
 
             {mode === "daftar" && konf && !konf.daftar ? (
@@ -152,7 +128,7 @@ export default function Masuk() {
                   <div className="relative">
                     <input
                       id={idSandi}
-                      className="input pr-12"
+                      className="input h-11 pr-12"
                       type={lihat ? "text" : "password"}
                       value={sandi}
                       onChange={(e) => setSandi(e.target.value)}
@@ -178,7 +154,7 @@ export default function Masuk() {
               </form>
             )}
 
-            <p className="pt-1 text-center text-sm text-ink-2">
+            <p className="text-center text-sm text-ink-2">
               {mode === "masuk" ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
               <button
                 type="button"
@@ -192,10 +168,27 @@ export default function Masuk() {
               <p className="text-center text-xs text-ink-2">Hanya untuk email {konf.domain.map((d) => "@" + d).join(", ")}</p>
             )}
           </div>
+        </div>
 
-          <p className="mt-10 flex items-center justify-center gap-2 text-xs text-ink-2">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Naskah langsung dihapus setelah diperiksa
-          </p>
+        <p className="flex items-center justify-center gap-2 text-xs text-ink-2 lg:justify-start">
+          <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Naskah langsung dihapus setelah diperiksa
+        </p>
+      </div>
+
+      {/* ---------- penjelasan produk (desktop) ---------- */}
+      <div className="hidden p-3 lg:block">
+        <div className="flex h-full flex-col justify-center gap-10 rounded-2xl bg-brand px-12 py-12 text-white xl:px-16">
+          <div className="max-w-lg">
+            <h2 className="text-[34px] leading-[1.15] font-bold tracking-tight xl:text-[40px]">Naskah sesuai template sebelum sampai ke reviewer.</h2>
+            <ul className="mt-6 space-y-3">
+              {FAKTA.map((f) => (
+                <li key={f} className="flex gap-3 text-[15px] leading-relaxed text-white/85">
+                  <Check className="mt-1 h-4 w-4 shrink-0 text-white" aria-hidden /> {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <ContohHasil />
         </div>
       </div>
     </div>
@@ -209,7 +202,7 @@ function Isian({ label, nilai, ubah, jenis = "text", placeholder, autoComplete, 
   return (
     <div>
       <label className="label" htmlFor={id}>{label}</label>
-      <input id={id} className="input" type={jenis} value={nilai} onChange={(e) => ubah(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} required={wajib} />
+      <input id={id} className="input h-11" type={jenis} value={nilai} onChange={(e) => ubah(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} required={wajib} />
     </div>
   );
 }

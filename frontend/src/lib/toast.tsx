@@ -14,7 +14,7 @@ const Konteks = createContext<(jenis: Jenis, judul: string, isi?: string) => voi
 const IKON = { sukses: CircleCheck, galat: CircleX, info: Info };
 const WARNA = {
   sukses: "text-ok",
-  galat: "text-brand-tinta",
+  galat: "text-bahaya",
   info: "text-ink-2",
 };
 

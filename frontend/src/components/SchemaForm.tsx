@@ -100,7 +100,7 @@ function Kontrol({ s: s0, akar, nilai, ubah, kecil, kunci, saran, id, labelAria 
       );
     }
     return (
-      <input {...a11y} type="checkbox" className="h-4 w-4 accent-brand-kuat" checked={!!nilai} onChange={(e) => ubah(e.target.checked)} />
+      <input {...a11y} type="checkbox" className="h-4 w-4 accent-brand" checked={!!nilai} onChange={(e) => ubah(e.target.checked)} />
     );
   }
   if (s.type === "number" || s.type === "integer") {
@@ -160,11 +160,11 @@ function InputTag({ nilai, ubah, id }: { nilai: string[]; ubah: (v: string[]) =>
     setTeks("");
   };
   return (
-    <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-isian bg-panel px-2 py-1.5 has-[input:focus-visible]:border-brand-kuat">
+    <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-isian bg-panel px-2 py-1.5 has-[input:focus-visible]:border-brand">
       {nilai.map((t, i) => (
         <span key={t + i} className="inline-flex items-center gap-1 rounded-md bg-panel-3 py-0.5 pr-0.5 pl-2 text-xs text-ink-2">
           {t}
-          <button type="button" aria-label={`Hapus ${t}`} className="rounded px-1 text-ink-2 hover:bg-line hover:text-brand-tinta" onClick={() => ubah(nilai.filter((_, j) => j !== i))}>
+          <button type="button" aria-label={`Hapus ${t}`} className="rounded px-1 text-ink-2 hover:bg-line hover:text-bahaya" onClick={() => ubah(nilai.filter((_, j) => j !== i))}>
             <span aria-hidden>×</span>
           </button>
         </span>
@@ -269,7 +269,7 @@ function DaftarObjek({ s, akar, nilai, ubah, saran }: { s: S; akar: S; nilai: an
                 onClick={() => geser(i, -1)} aria-label={`Naikkan butir ${i + 1}`} title="Naik"><span aria-hidden>↑</span></button>
               <button type="button" className="ketuk rounded-md px-2 py-0.5 text-ink-2 hover:bg-panel-3 disabled:opacity-40" disabled={i === nilai.length - 1}
                 onClick={() => geser(i, 1)} aria-label={`Turunkan butir ${i + 1}`} title="Turun"><span aria-hidden>↓</span></button>
-              <button type="button" className="ketuk rounded-md px-2 py-0.5 text-xs font-semibold text-brand-tinta hover:bg-brand-soft"
+              <button type="button" className="ketuk rounded-md px-2 py-0.5 text-xs font-semibold text-bahaya hover:bg-bahaya-soft"
                 onClick={() => ubah(nilai.filter((_, j) => j !== i))} aria-label={`Hapus butir ${i + 1}`}>
                 Hapus
               </button>
@@ -280,7 +280,7 @@ function DaftarObjek({ s, akar, nilai, ubah, saran }: { s: S; akar: S; nilai: an
       ))}
       <button
         type="button"
-        className="ketuk w-full rounded-lg border border-dashed border-isian py-2 text-sm font-semibold text-ink-2 hover:border-brand-kuat hover:text-brand-tinta"
+        className="ketuk w-full rounded-lg border border-dashed border-isian py-2 text-sm font-semibold text-ink-2 hover:border-brand hover:text-brand-tinta"
         onClick={() => ubah([...nilai, nilaiBawaan(itemS, akar)])}
       >
         Tambah butir
@@ -333,14 +333,23 @@ function Objek({ s, akar, nilai, ubah, saran }: { s: S; akar: S; nilai: any; uba
 
 /* ---------------- akar: tiap bagian profil jadi kartu yang bisa dilipat ---------------- */
 
-export default function SchemaForm({ skema, nilai, ubah, sembunyikan = [], hanyaBaca }: {
+/** Daftar bagian tingkat atas (kunci + judul) untuk navigasi samping editor. */
+export function daftarBagian(skema: S, sembunyikan: string[] = []): [string, string][] {
+  return (Object.entries(skema.properties ?? {}) as [string, S][])
+    .filter(([k]) => !sembunyikan.includes(k))
+    .map(([k, ks0]) => [k, bukaNullable(ks0, skema).s.title ?? k]);
+}
+
+export const BAGIAN_TERBUKA_AWAL: Record<string, boolean> = { scope: true, tata_letak: true, format: true, struktur: true };
+
+export default function SchemaForm({ skema, nilai, ubah, sembunyikan = [], hanyaBaca, buka, setBuka }: {
   skema: S; nilai: any; ubah: (v: any) => void; sembunyikan?: string[]; hanyaBaca?: boolean;
+  buka: Record<string, boolean>; setBuka: (b: Record<string, boolean>) => void;
 }) {
-  const [buka, setBuka] = useState<Record<string, boolean>>({ scope: true, tata_letak: true, format: true, struktur: true });
   const bagianJudul: string[] = (nilai?.struktur?.bagian ?? []).map((b: any) => b.judul).filter(Boolean);
   const saran = { bagian: ["Abstrak", "Seluruh naskah", ...bagianJudul] };
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {(Object.entries(skema.properties ?? {}) as [string, S][])
         .filter(([k]) => !sembunyikan.includes(k))
         .map(([k, ks0]) => {
@@ -349,7 +358,7 @@ export default function SchemaForm({ skema, nilai, ubah, sembunyikan = [], hanya
           const v = nilai?.[k];
           const set = (b: any) => ubah({ ...nilai, [k]: b });
           return (
-            <div key={k} className="kartu overflow-hidden">
+            <section key={k} id={`sek-${k}`} className="kartu scroll-mt-6 overflow-hidden">
               <h2>
                 <button
                   type="button"
@@ -359,14 +368,14 @@ export default function SchemaForm({ skema, nilai, ubah, sembunyikan = [], hanya
                   className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-panel-2"
                 >
                   <span className="min-w-0">
-                    <span className="font-serif text-[17px] font-semibold text-ink">{x.title ?? k}</span>
-                    {x.description && <span className="mt-0.5 block text-xs text-ink-2 sm:ml-2 sm:inline">{x.description}</span>}
+                    <span className="block text-[15px] font-semibold text-ink">{x.title ?? k}</span>
+                    {x.description && <span className="mt-0.5 block text-[13px] text-ink-2">{x.description}</span>}
                   </span>
-                  <ChevronDown className={`h-4 w-4 shrink-0 text-ink-2 transition-transform ${terbuka ? "rotate-180" : ""}`} aria-hidden />
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-ink-3 transition-transform ${terbuka ? "rotate-180" : ""}`} aria-hidden />
                 </button>
               </h2>
               {terbuka && (
-                <fieldset id={`bagian-${k}`} disabled={hanyaBaca} className="border-t border-line px-4 py-4">
+                <fieldset id={`bagian-${k}`} disabled={hanyaBaca} className="border-t border-line px-5 py-5">
                   {x.type === "array" ? (
                     <DaftarObjek s={x} akar={skema} nilai={v ?? []} ubah={set} saran={saran} />
                   ) : adalahMatriks(x, skema) ? (
@@ -376,7 +385,7 @@ export default function SchemaForm({ skema, nilai, ubah, sembunyikan = [], hanya
                   )}
                 </fieldset>
               )}
-            </div>
+            </section>
           );
         })}
     </div>
