@@ -83,7 +83,7 @@ def test_alur_api_dengan_akun(template_docx, naskah_docx, tmp_path):
         berkas.write_bytes(penulis.get(f"/api/cek/{r['id']}/unduh").content)
         komentar = list(docx.Document(str(berkas)).comments)
         assert {k.author for k in komentar} == {"Budi Santoso (budi@gmail.com)"}
-        assert any("Diperiksa oleh: Budi Santoso <budi@gmail.com>" in k.text for k in komentar)
+        assert any("Diperiksa oleh Budi Santoso <budi@gmail.com>" in k.text for k in komentar)
 
         # riwayat terpisah per akun; admin bisa melihat semua
         assert [x["id"] for x in penulis.get("/api/cek").json()] == [r["id"]]
@@ -164,7 +164,7 @@ def test_penilaian_scope_terima_tolak(template_docx, naskah_docx, tmp_path):
     for kunci in ("FOCUS & SCOPE JURNAL", "Data Mining", "JUDUL:", "ABSTRAK:", "KATA KUNCI:", "STRUKTUR:", "[PENDAHULUAN]"):
         assert kunci in k.pesan
     teks = " | ".join(c.text for c in docx.Document(str(keluar)).comments)
-    assert "Kesesuaian scope: DITOLAK (22/100) — Kontribusi utama pada pedagogi" in teks
+    assert "Kesesuaian scope: tidak sesuai, naskah ditolak (22/100). Kontribusi utama pada pedagogi" in teks
 
     # putusan yang tidak dikenali / AI gagal -> dicatat, cek bot tetap selesai
     rusak = KlienScope('{"keputusan": "mungkin"}')

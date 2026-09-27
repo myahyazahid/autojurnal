@@ -5,6 +5,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from difflib import SequenceMatcher
 
+from ..engine import katalog as KT
 from ..engine import teks as T
 from ..engine.docmodel import DocModel, Para
 from ..engine.profil import AturanNaratif, Profil
@@ -48,7 +49,7 @@ def _paras_bagian(dm: DocModel, bagian: str) -> tuple[list[Para], Para | None]:
     return ps, h
 
 
-def _cek_satu(klien: KlienAI, bagian: str, aturan: list[AturanNaratif], ps: list[Para], jangkar: Para) -> list[Temuan]:
+def _cek_satu(klien: KlienAI, prof: Profil, bagian: str, aturan: list[AturanNaratif], ps: list[Para], jangkar: Para) -> list[Temuan]:
     teks, n = [], 0
     for p in ps:
         baris = f"[P{p.i}] {p.bersih}"
@@ -80,12 +81,9 @@ def _cek_satu(klien: KlienAI, bagian: str, aturan: list[AturanNaratif], ps: list
             para = int(str(para).lstrip("Pp"))
         except (TypeError, ValueError):
             para = None
-        hasil.append(Temuan(
-            kategori=f"Naratif · {bagian}",
-            pesan=f"{aturan[no].aturan.rstrip('.')}. {str(item.get('penjelasan') or '').strip()}",
-            tingkat="saran",
-            para=para if para in sah else jangkar.i,
-            sumber="ai",
+        hasil.append(KT.temuan(
+            prof, f"Naratif · {bagian}", "naratif.tidak_sesuai", para=para if para in sah else jangkar.i, sumber="ai",
+            aturan=aturan[no].aturan.rstrip("."), penjelasan=str(item.get("penjelasan") or "").strip(), bagian=bagian,
         ))
     return hasil
 
@@ -99,20 +97,19 @@ def cek_naratif(klien: KlienAI, dm: DocModel, prof: Profil) -> list[Temuan]:
     for bagian, aturan in per_bagian.items():
         ps, jangkar = _paras_bagian(dm, bagian)
         if not ps or jangkar is None:
-            hasil.append(Temuan(f"Naratif · {bagian}", f"Bagian “{bagian}” tidak ditemukan sehingga aturan naratifnya tidak bisa dicek.",
-                                tingkat="saran", sumber="ai"))
+            hasil.append(KT.temuan(prof, f"Naratif · {bagian}", "naratif.bagian_tidak_ada", sumber="ai", bagian=bagian))
             continue
         tugas.append((bagian, aturan, ps, jangkar))
     galat = []
     with ThreadPoolExecutor(max_workers=4) as ex:
-        futures = [ex.submit(_cek_satu, klien, *t) for t in tugas]
+        futures = [ex.submit(_cek_satu, klien, prof, *t) for t in tugas]
         for f, t in zip(futures, tugas):
             try:
                 hasil.extend(f.result())
             except Exception as e:
-                galat.append(f"{t[0]}: {e}")
+                galat.append((t[0], str(e)))
     if tugas and len(galat) == len(tugas):
-        raise RuntimeError("Pengecekan AI gagal — " + "; ".join(galat)[:400])
-    for g in galat:
-        hasil.append(Temuan("Naratif", f"Pengecekan AI gagal untuk bagian {g[:200]}", tingkat="saran", sumber="ai"))
+        raise RuntimeError("Pengecekan AI gagal: " + "; ".join(f"{b}: {g}" for b, g in galat)[:400])
+    for b, g in galat:
+        hasil.append(KT.temuan(prof, "Naratif", "naratif.gagal", sumber="ai", bagian=b, galat=g[:200]))
     return hasil

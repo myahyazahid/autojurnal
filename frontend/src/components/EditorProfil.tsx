@@ -72,7 +72,7 @@ export default function EditorProfil({ nama, setNama, deskripsi, setDeskripsi, p
   }
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-8">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-8">
       <nav aria-label="Bagian aturan" className="lg:sticky lg:top-6">
         <div className="mb-2 hidden px-3 text-xs font-medium text-ink-3 lg:block">Bagian aturan</div>
         <ul className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0">

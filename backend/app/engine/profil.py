@@ -167,7 +167,7 @@ class AturanScope(_Dasar):
         description="Tempel apa adanya dari halaman Focus and Scope situs jurnal (paragraf maupun daftar bidang)",
         json_schema_extra={"format": "textarea"},
     )
-    cek_ai: bool = Field(True, title="Nilai kesesuaian naskah dengan scope (AI) — putusan terima/tolak")
+    cek_ai: bool = Field(True, title="Nilai kesesuaian naskah dengan scope (AI) dan beri putusan terima/tolak")
 
 
 class Profil(_Dasar):
@@ -188,7 +188,11 @@ class Profil(_Dasar):
     )
     komentar: PengaturanKomentar = Field(default_factory=PengaturanKomentar, title="Komentar")
     catatan_ekstraksi: list[str] = Field(default_factory=list, title="Catatan hasil pembacaan template")
+    # kalimat komentar kustom {kode katalog: kalimat}; diatur di menu Komentar, bukan di form profil
+    teks_komentar: dict[str, str] = Field(default_factory=dict, title="Kalimat komentar kustom")
 
 
 def skema_json() -> dict:
-    return Profil.model_json_schema()
+    skema = Profil.model_json_schema()
+    skema["properties"].pop("teks_komentar", None)
+    return skema

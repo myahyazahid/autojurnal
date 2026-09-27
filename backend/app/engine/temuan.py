@@ -13,6 +13,7 @@ class Temuan:
     para: int | None = None  # indeks paragraf jangkar komentar; None = tingkat dokumen
     kelompok: str | None = None  # masalah sejenis dikelompokkan agar komentar tidak membanjir
     sumber: str = "bot"  # bot | ai
+    kode: str | None = None  # kunci di katalog komentar (engine/katalog.py)
 
     def ke_dict(self) -> dict:
         return asdict(self)

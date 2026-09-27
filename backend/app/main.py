@@ -31,6 +31,7 @@ from .config import (COOKIE_AMAN, DIR_HASIL, DIR_SEMENTARA, DIR_TEMPLATE, FRONTE
                      SECRET_KEY, VERSI)
 from .db import (Jurnal, Pengecekan, Pengguna, baca_pengaturan, engine, iso, sekarang, sesi, siapkan_db,
                  simpan_pengaturan)
+from .engine import katalog
 from .engine.ekstrak import ekstrak_template
 from .engine.layanan import cek_naskah
 from .engine.profil import Profil, skema_json
@@ -234,11 +235,50 @@ def ubah_jurnal(jid: int, masuk: JurnalMasuk, _: Pengguna = Admin_, s: Session =
     if not j:
         raise HTTPException(404, "Jurnal tidak ditemukan.")
     j.nama, j.deskripsi = masuk.nama.strip() or j.nama, masuk.deskripsi
+    # kalimat komentar diatur lewat menu Komentar; kiriman form profil tidak menimpanya
+    masuk.profil.teks_komentar = Profil.model_validate_json(j.profil_json).teks_komentar
     j.profil_json, j.diubah = masuk.profil.model_dump_json(), sekarang()
     s.add(j)
     s.commit()
     s.refresh(j)
     return _ringkas_jurnal(j)
+
+
+# ---------------------------------------------------------------------------
+# katalog kalimat komentar per jurnal (admin)
+
+
+class KomentarMasuk(BaseModel):
+    teks: dict[str, str]
+
+
+@app.get("/api/komentar/katalog")
+def katalog_komentar(_: Pengguna = Admin_):
+    return {"grup": katalog.GRUP, "entri": katalog.ekspor(), "maks_panjang": katalog.MAKS_PANJANG}
+
+
+@app.get("/api/jurnal/{jid}/komentar")
+def komentar_jurnal(jid: int, _: Pengguna = Admin_, s: Session = Depends(sesi)):
+    j = s.get(Jurnal, jid)
+    if not j:
+        raise HTTPException(404, "Jurnal tidak ditemukan.")
+    return {"jurnal_id": j.id, "teks": Profil.model_validate_json(j.profil_json).teks_komentar}
+
+
+@app.put("/api/jurnal/{jid}/komentar")
+def simpan_komentar(jid: int, m: KomentarMasuk, _: Pengguna = Admin_, s: Session = Depends(sesi)):
+    j = s.get(Jurnal, jid)
+    if not j:
+        raise HTTPException(404, "Jurnal tidak ditemukan.")
+    sah, galat = katalog.bersihkan(m.teks)
+    if galat:
+        raise HTTPException(422, " ".join(galat[:3]))
+    prof = Profil.model_validate_json(j.profil_json)
+    prof.teks_komentar = sah
+    j.profil_json, j.diubah = prof.model_dump_json(), sekarang()
+    s.add(j)
+    s.commit()
+    return {"jurnal_id": j.id, "teks": sah}
 
 
 @app.delete("/api/jurnal/{jid}")
@@ -271,6 +311,7 @@ async def impor_jurnal(berkas: UploadFile = File(...), u: Pengguna = Admin_, s: 
         prof = Profil.model_validate(data.get("profil", data))
     except (ValueError, ValidationError, AttributeError) as e:
         raise HTTPException(400, f"Berkas profil tidak valid: {e}")
+    prof.teks_komentar = katalog.bersihkan(prof.teks_komentar)[0]
     return _buat_jurnal(JurnalMasuk(nama=data.get("nama") or Path(berkas.filename or "Impor").stem,
                                     deskripsi=data.get("deskripsi", ""), profil=prof), u, s)
 

@@ -8,14 +8,14 @@ from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 
 from .docmodel import DocModel, Para, q
+from .katalog import teks
 from .profil import Profil
 from .temuan import Temuan
 
 
-def _awalan(t: Temuan) -> str:
-    if t.sumber == "ai":
-        return f"[SARAN AI · {t.kategori}]"
-    return f"[{'WAJIB' if t.tingkat == 'wajib' else 'SARAN'} · {t.kategori}]"
+def _awalan(kustom: dict, t: Temuan) -> str:
+    kode = "label.ai" if t.sumber == "ai" else ("label.wajib" if t.tingkat == "wajib" else "label.saran")
+    return teks(kustom, kode, kategori=t.kategori)
 
 
 def _runs_jangkar(dm: DocModel, p: Para) -> list[Run]:
@@ -42,6 +42,7 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
     """
     doc = dm.doc
     ko = prof.komentar
+    kustom = prof.teks_komentar
     batas = max(1, ko.maks_komentar_per_masalah)
     penulis = (penulis or ko.nama_pemeriksa or "AutoJurnal").strip()
     inisial = _inisial(penulis)
@@ -69,9 +70,9 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
         (dokumen if t.para is None else per_para[t.para]).append(t)
 
     def baris(t: Temuan) -> str:
-        s = f"{_awalan(t)} {t.pesan}" if ko.label_kategori else t.pesan
+        s = f"{_awalan(kustom, t)} {t.pesan}" if ko.label_kategori else t.pesan
         if id(t) in tambahan:
-            s += f" (Masalah yang sama juga ada di {tambahan[id(t)]} tempat lain.)"
+            s += " " + teks(kustom, "ringkasan.masalah_sama", jumlah=tambahan[id(t)])
         return s
 
     for pi in sorted(per_para):
@@ -91,23 +92,23 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
         unik: dict[str, Temuan] = {}
         for i, t in enumerate(masuk):
             unik.setdefault(t.kelompok or f"#{i}", t)
-        isi = [f"Hasil cek otomatis — {nama_jurnal}"]
+        isi = [teks(kustom, "ringkasan.judul", jurnal=nama_jurnal)]
         if scope and scope.get("keputusan"):
-            putusan = "DITERIMA" if scope["keputusan"] == "terima" else "DITOLAK"
-            skor = f" ({scope['skor']}/100)" if scope.get("skor") is not None else ""
-            isi.append(f"Kesesuaian scope: {putusan}{skor} — {scope.get('alasan', '')}".rstrip(" —"))
+            kode = "ringkasan.scope_sesuai" if scope["keputusan"] == "terima" else "ringkasan.scope_tidak_sesuai"
+            skor = f"{scope['skor']}/100" if scope.get("skor") is not None else "tanpa skor"
+            isi.append(teks(kustom, kode, skor=skor, alasan=scope.get("alasan") or "").strip())
         if unik:
-            isi.append(f"{len(unik)} hal perlu diperbaiki (ditandai di {len(masuk)} tempat pada naskah).")
+            isi.append(teks(kustom, "ringkasan.jumlah", jumlah=len(unik), tempat=len(masuk)))
         else:
-            isi.append("Tidak ada pelanggaran aturan template yang ditemukan.")
+            isi.append(teks(kustom, "ringkasan.nihil"))
         if pemeriksa:
-            isi.append(f"Diperiksa oleh: {pemeriksa}")
+            isi.append(teks(kustom, "ringkasan.pemeriksa", pemeriksa=pemeriksa))
         if dokumen:
             isi.append("")
             isi.extend(f"• {baris(t)}" for t in dokumen)
         if ko.label_kategori:
             isi.append("")
-            isi.append("WAJIB = tidak sesuai aturan template. SARAN = perlu dicek manual.")
+            isi.append(teks(kustom, "label.keterangan"))
         doc.add_comment(_runs_jangkar(dm, jangkar), text="\n".join(isi), author=penulis, initials=inisial)
 
     hasil = []

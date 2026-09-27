@@ -54,20 +54,20 @@ def test_cek_naskah_menemukan_pelanggaran(template_docx, naskah_docx, tmp_path):
     pesan = " | ".join(t["pesan"] for t in hasil["temuan"])
 
     assert "Ukuran kertas Letter" in pesan
-    assert "Margin kiri 2,54 cm, seharusnya 4 cm" in pesan
-    assert "Bagian “METODE PENELITIAN” tidak ditemukan" in pesan
-    assert "Judul terdiri atas 18 kata; maksimal 15 kata" in pesan
-    assert "Abstrak terdiri atas 40 kata; seharusnya 150–250 kata" in pesan
-    assert "dipisahkan tanda “,”, seharusnya “;”" in pesan
-    assert "Jumlah kata kunci 7" in pesan
-    assert "font Calibri, seharusnya Times New Roman" in pesan
-    assert "spasi baris 1,5, seharusnya 1" in pesan
-    assert "Paragraf hanya 1 kalimat" in pesan
-    assert "Judul tabel diletakkan di bawah tabel; seharusnya di atas" in pesan
-    assert "Tabel 1 belum dirujuk" in pesan
-    assert "Jumlah referensi 3, minimal 10" in pesan
-    assert "Referensi mutakhir" in pesan
-    assert "Sitasi “Citra (2019)” tidak ditemukan" in pesan
+    assert "Margin kiri 2,54 cm, sedangkan template menetapkan 4 cm" in pesan
+    assert "Bagian “METODE PENELITIAN” tidak ada di naskah" in pesan
+    assert "Judul terdiri atas 18 kata, sedangkan ketentuan template maksimal 15 kata" in pesan
+    assert "Abstrak terdiri atas 40 kata, sedangkan ketentuan template 150 sampai 250 kata" in pesan
+    assert "Kata kunci dipisahkan dengan tanda koma (,). Gunakan tanda titik koma (;)" in pesan
+    assert "Kata kunci berjumlah 7, sedangkan ketentuan template 3 sampai 5 kata kunci" in pesan
+    assert "memakai font Calibri. Template meminta Times New Roman" in pesan
+    assert "memakai spasi baris 1,5. Template meminta spasi 1" in pesan
+    assert "Paragraf ini hanya berisi 1 kalimat" in pesan
+    assert "Judul tabel ada di bawah tabel. Template meletakkannya di atas tabel" in pesan
+    assert "Tabel 1 belum disebut di dalam teks" in pesan
+    assert "Daftar pustaka berisi 3 referensi, sedangkan template meminta minimal 10" in pesan
+    assert "Referensi terbitan" in pesan
+    assert "Sitasi “Citra (2019)” tidak ada padanannya" in pesan
     assert "belum urut abjad" in pesan
 
     # komentar Word benar-benar tertulis dan berkas bisa dibuka lagi
@@ -75,11 +75,11 @@ def test_cek_naskah_menemukan_pelanggaran(template_docx, naskah_docx, tmp_path):
     komentar = list(d.comments)
     assert len(komentar) >= 10
     semua_teks = " | ".join(k.text for k in komentar)
-    assert "Hasil cek otomatis — Jurnal Uji" in semua_teks
+    assert "Hasil cek otomatis: Jurnal Uji" in semua_teks
     # bawaan: tanpa label [WAJIB · ...] dan temuan saran tidak ditulis ke Word
     assert "[WAJIB" not in semua_teks and "[SARAN" not in semua_teks
-    assert "Margin kiri 2,54 cm, seharusnya 4 cm." in semua_teks
-    assert "Paragraf hanya 1 kalimat" not in semua_teks and "tidak ditemukan padanannya" not in semua_teks
+    assert "Margin kiri 2,54 cm, sedangkan template menetapkan 4 cm." in semua_teks
+    assert "Paragraf ini hanya berisi 1 kalimat" not in semua_teks and "tidak ada padanannya" not in semua_teks
     assert hasil["ringkasan"]["wajib"] > 0 and hasil["statistik"]["jumlah_referensi"] == 3
     assert 0 < hasil["ringkasan"]["di_word"] < hasil["ringkasan"]["kemunculan"]
     assert all(not t["ditulis"] for t in hasil["temuan"] if t["tingkat"] == "saran")
@@ -93,7 +93,7 @@ def test_saran_dan_label_bisa_dinyalakan(template_docx, naskah_docx, tmp_path):
     cek_naskah(str(naskah_docx), prof, "Jurnal Uji", keluar)
     semua_teks = " | ".join(k.text for k in docx.Document(str(keluar)).comments)
     assert "[WAJIB · Tata Letak] Margin kiri" in semua_teks
-    assert "[SARAN · Paragraf] Paragraf hanya 1 kalimat" in semua_teks
+    assert "[SARAN · Paragraf] Paragraf ini hanya berisi 1 kalimat" in semua_teks
 
 
 def test_naskah_patuh_tanpa_temuan_format(template_docx, tmp_path):

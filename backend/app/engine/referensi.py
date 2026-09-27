@@ -8,11 +8,12 @@ from dataclasses import dataclass, field
 from . import teks as T
 from .docmodel import DocModel, Para
 from .profil import Profil
+from . import katalog as KT
 from .temuan import Temuan
 
 RX_TAHUN = re.compile(r"\b(19[5-9]\d|20[0-4]\d)[a-z]?\b")
 RX_SITASI_NUM = re.compile(r"\[(\s*\d{1,3}(?:\s*[-–,;]\s*\d{1,3})*\s*)\]")
-# "[1] ...", "1. ...", "1) ..." — tapi bukan potongan DOI seperti "10.33557/..."
+# "[1] ...", "1. ...", "1) ...", tapi bukan potongan DOI seperti "10.33557/..."
 RX_AWALAN_NUM = re.compile(r"^\s*(?:\[(\d{1,3})\]\s*|(\d{1,3})[.)](?:\s+|\t)(?!\d))")
 RX_KURUNG = re.compile(r"\(([^()]*?\b(?:19|20)\d{2}[a-z]?\b[^()]*)\)")
 RX_NARATIF = re.compile(
@@ -152,6 +153,7 @@ def cek_referensi(dm: DocModel, prof: Profil) -> list[Temuan]:
     ref = prof.referensi
     out: list[Temuan] = []
     K = "Referensi"
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
     num = sitasi_numerik(dm)
     ay = sitasi_penulis_tahun(dm)
     terdeteksi = "numerik" if len(num) > len(ay) else ("penulis_tahun" if ay else None)
@@ -164,17 +166,16 @@ def cek_referensi(dm: DocModel, prof: Profil) -> list[Temuan]:
 
     if not entri:
         if ref.wajib:
-            out.append(Temuan(K, "Daftar pustaka tidak ditemukan (atau judul bagiannya tidak dikenali).", para=jangkar))
+            out.append(tm("referensi.tidak_ada", para=jangkar))
         return out
 
     if ref.gaya_sitasi != "otomatis" and terdeteksi and terdeteksi != ref.gaya_sitasi:
-        contoh = "[1]" if ref.gaya_sitasi == "numerik" else "(Nama, 2020)"
-        nyata = "numerik [1]" if terdeteksi == "numerik" else "nama-tahun (Nama, 2020)"
-        out.append(Temuan(K, f"Gaya sitasi di naskah tampak {nyata}, sedangkan template meminta gaya {contoh}.", para=jangkar))
+        label = {"numerik": "numerik [1]", "penulis_tahun": "nama-tahun (Nama, 2020)"}
+        out.append(tm("referensi.gaya_sitasi", para=jangkar, aktual=label[terdeteksi], harapan=label[ref.gaya_sitasi]))
 
     n = len(entri)
     if ref.min_jumlah and n < ref.min_jumlah:
-        out.append(Temuan(K, f"Jumlah referensi {n}, minimal {ref.min_jumlah}.", para=jangkar))
+        out.append(tm("referensi.jumlah", para=jangkar, jumlah=n, minimal=ref.min_jumlah))
 
     bertahun = [e for e in entri if e.tahun]
     if ref.rentang_tahun and ref.persen_mutakhir and bertahun:
@@ -183,23 +184,16 @@ def cek_referensi(dm: DocModel, prof: Profil) -> list[Temuan]:
         baru = sum(1 for e in bertahun if e.tahun >= batas)
         persen = baru * 100 / len(bertahun)
         if persen + 1e-9 < ref.persen_mutakhir:
-            out.append(Temuan(
-                K,
-                f"Referensi mutakhir ({batas}–{kini}) baru {baru} dari {len(bertahun)} ({T.angka(round(persen, 1))}%); "
-                f"minimal {T.angka(ref.persen_mutakhir)}%.",
-                para=jangkar,
-            ))
+            out.append(tm("referensi.mutakhir", para=jangkar, rentang=f"{batas} sampai {kini}", jumlah=baru, total=len(bertahun),
+                          persen=T.angka(round(persen, 1)), persen_minimal=T.angka(ref.persen_mutakhir)))
     for e in entri:
         if e.tahun is None and not re.search(r"n\.d\.|t\.t\.|tanpa tahun", e.teks, re.I):
-            out.append(Temuan(K, "Tahun terbit referensi ini tidak terbaca.", tingkat="saran", para=e.paras[0].i, kelompok="ref.tanpa_tahun"))
+            out.append(tm("referensi.tanpa_tahun", para=e.paras[0].i, kelompok="ref.tanpa_tahun"))
 
     if ref.urutan == "abjad" and not numerik:
         for a, b in zip(entri, entri[1:]):
             if b.kunci and a.kunci and b.kunci < a.kunci:
-                out.append(Temuan(
-                    K, f"Daftar pustaka belum urut abjad: “{b.kunci.title()}” seharusnya sebelum “{a.kunci.title()}”.",
-                    para=b.paras[0].i, kelompok="ref.abjad",
-                ))
+                out.append(tm("referensi.abjad", para=b.paras[0].i, kelompok="ref.abjad", aktual=b.kunci.title(), sebelum=a.kunci.title()))
 
     if not ref.cek_kecocokan_sitasi:
         return out
@@ -211,30 +205,24 @@ def cek_referensi(dm: DocModel, prof: Profil) -> list[Temuan]:
         for s in num:
             for x in s.nomor:
                 if x not in nomor_ada:
-                    out.append(Temuan(K, f"Sitasi [{x}] tidak ada di daftar pustaka (hanya {n} referensi).", para=s.para.i, kelompok="ref.sitasi_hilang"))
+                    out.append(tm("referensi.sitasi_tidak_ada", para=s.para.i, kelompok="ref.sitasi_hilang", nomor=x, total=n))
                 if ref.urutan == "kemunculan" and x > maks_lihat + 1 and dilaporkan_urutan < 3:
-                    out.append(Temuan(
-                        K, f"Urutan sitasi: [{x}] muncul sebelum [{maks_lihat + 1}]. Nomor sitasi harus berurutan sesuai kemunculan.",
-                        tingkat="saran", para=s.para.i, kelompok="ref.urutan_num",
-                    ))
+                    out.append(tm("referensi.urutan_sitasi", para=s.para.i, kelompok="ref.urutan_num", nomor=x, harapan=maks_lihat + 1))
                     dilaporkan_urutan += 1
                 maks_lihat = max(maks_lihat, x)
         dikutip = {x for s in num for x in s.nomor}
         for e in entri:
             if e.nomor not in dikutip:
-                out.append(Temuan(K, f"Referensi [{e.nomor}] tidak pernah disitasi di naskah.", tingkat="saran", para=e.paras[0].i, kelompok="ref.tidak_disitasi"))
+                out.append(tm("referensi.tidak_disitasi_nomor", para=e.paras[0].i, kelompok="ref.tidak_disitasi", nomor=e.nomor))
     else:
         for s in ay:
             cocok = [e for e in entri if e.tahun == s.tahun and any(nm in e.penulis for nm in s.nama)]
             for e in cocok:
                 e.disitasi = True
             if not cocok:
-                out.append(Temuan(
-                    K, f"Sitasi “{s.teks}” tidak ditemukan padanannya di daftar pustaka (cek nama/tahun).",
-                    tingkat="saran", para=s.para.i, kelompok="ref.sitasi_hilang",
-                ))
+                out.append(tm("referensi.sitasi_tidak_cocok", para=s.para.i, kelompok="ref.sitasi_hilang", sitasi=s.teks))
         if ay:
             for e in entri:
                 if not e.disitasi:
-                    out.append(Temuan(K, "Referensi ini tidak ditemukan sitasinya di naskah.", tingkat="saran", para=e.paras[0].i, kelompok="ref.tidak_disitasi"))
+                    out.append(tm("referensi.tidak_disitasi", para=e.paras[0].i, kelompok="ref.tidak_disitasi"))
     return out

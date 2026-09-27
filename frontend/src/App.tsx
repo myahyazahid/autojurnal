@@ -6,6 +6,7 @@ import { useAuth } from "./lib/auth";
 import Akun from "./pages/Akun";
 import CekNaskah from "./pages/CekNaskah";
 import { DaftarJurnal, EditJurnal, JurnalBaru } from "./pages/Jurnal";
+import Komentar from "./pages/Komentar";
 import Masuk from "./pages/Masuk";
 import Pengaturan from "./pages/Pengaturan";
 import Pengguna from "./pages/Pengguna";
@@ -42,6 +43,7 @@ export default function App() {
       <Route path="/jurnal/baru" element={<Wajib admin><JurnalBaru /></Wajib>} />
       <Route path="/jurnal/:id" element={<Wajib><EditJurnal /></Wajib>} />
       <Route path="/akun" element={<Wajib><Akun /></Wajib>} />
+      <Route path="/komentar" element={<Wajib admin><Komentar /></Wajib>} />
       <Route path="/pengguna" element={<Wajib admin><Pengguna /></Wajib>} />
       <Route path="/pengaturan" element={<Wajib admin><Pengaturan /></Wajib>} />
       <Route path="*" element={<Navigate to="/" replace />} />

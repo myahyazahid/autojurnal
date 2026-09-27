@@ -375,7 +375,7 @@ export default function SchemaForm({ skema, nilai, ubah, sembunyikan = [], hanya
                 </button>
               </h2>
               {terbuka && (
-                <fieldset id={`bagian-${k}`} disabled={hanyaBaca} className="border-t border-line px-5 py-5">
+                <fieldset id={`bagian-${k}`} disabled={hanyaBaca} className="min-w-0 border-t border-line px-5 py-5">
                   {x.type === "array" ? (
                     <DaftarObjek s={x} akar={skema} nilai={v ?? []} ubah={set} saran={saran} />
                   ) : adalahMatriks(x, skema) ? (

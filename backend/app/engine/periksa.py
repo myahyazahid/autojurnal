@@ -5,11 +5,13 @@ import re
 from collections import defaultdict
 from difflib import SequenceMatcher
 
+from . import katalog as KT
 from . import teks as T
 from .docmodel import DocModel, Para, q
 from .klasifikasi import CAP_GAMBAR, CAP_TABEL, klasifikasi
 from .profil import FormatElemen, Profil
 from .referensi import cek_referensi, entri_pustaka, sitasi_numerik, sitasi_penulis_tahun
+from .katalog import di_luar_batas, ketentuan
 from .temuan import Temuan
 
 PERAN_KE_ELEMEN = {
@@ -39,19 +41,21 @@ def _tanpa_label(p: Para) -> str:
     return t.strip()
 
 
-def _rentang(n: int, mn: int | None, mx: int | None, satuan: str) -> str | None:
-    if mn and mx and not (mn <= n <= mx):
-        return f"seharusnya {mn}–{mx} {satuan}"
-    if mx and not mn and n > mx:
-        return f"maksimal {mx} {satuan}"
-    if mn and not mx and n < mn:
-        return f"minimal {mn} {satuan}"
-    return None
+def _ribuan(n: int) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
+def _batas(n: int, mn: int | None, mx: int | None, satuan: str) -> dict | None:
+    """Variabel komentar untuk batas jumlah; None bila n masih dalam batas."""
+    if not di_luar_batas(n, mn, mx):
+        return None
+    return {"jumlah": _ribuan(n), "ketentuan": ketentuan(mn, mx, satuan),
+            "minimal": _ribuan(mn) if mn else "", "maksimal": _ribuan(mx) if mx else ""}
 
 
 def _label_indentasi(v: float) -> str:
     if abs(v) < 0.05:
-        return "tanpa indentasi"
+        return "0 cm (tanpa indentasi)"
     return f"gantung {T.angka(round(-v, 2))} cm" if v < 0 else f"{T.angka(round(v, 2))} cm"
 
 
@@ -60,15 +64,16 @@ def _label_indentasi(v: float) -> str:
 
 def cek_tata_letak(dm: DocModel, prof: Profil) -> list[Temuan]:
     tl, out, K = prof.tata_letak, [], "Tata Letak"
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
     tol = tl.toleransi_cm or 0.1
     sudah: set = set()
     for idx, s in enumerate(dm.seksi):
-        ket = f" (bagian dokumen ke-{idx + 1})" if len(dm.seksi) > 1 else ""
+        ket = f" di bagian dokumen ke-{idx + 1}" if len(dm.seksi) > 1 else ""
         if s.page_width and s.page_height:
             w, h = s.page_width.cm, s.page_height.cm
             lanskap = w > h
             if tl.orientasi and (tl.orientasi == "lanskap") != lanskap:
-                out.append(Temuan(K, f"Orientasi halaman {'lanskap' if lanskap else 'potret'}{ket}, seharusnya {tl.orientasi}.", tingkat="saran"))
+                out.append(tm("tata_letak.orientasi", bagian_dokumen=ket, aktual="lanskap" if lanskap else "potret", harapan=tl.orientasi))
             ww, hh = (h, w) if lanskap else (w, h)
             if tl.lebar_kertas_cm and tl.tinggi_kertas_cm and (
                 abs(ww - tl.lebar_kertas_cm) > max(tol, 0.2) or abs(hh - tl.tinggi_kertas_cm) > max(tol, 0.2)
@@ -77,31 +82,33 @@ def cek_tata_letak(dm: DocModel, prof: Profil) -> list[Temuan]:
                 if kunci not in sudah:
                     sudah.add(kunci)
                     a, b = _kertas(ww, hh), _kertas(tl.lebar_kertas_cm, tl.tinggi_kertas_cm)
-                    out.append(Temuan(
-                        K, f"Ukuran kertas {a + ' ' if a else ''}({T.angka(round(ww, 2))} × {T.angka(round(hh, 2))} cm), "
-                           f"seharusnya {b + ' ' if b else ''}({T.angka(tl.lebar_kertas_cm)} × {T.angka(tl.tinggi_kertas_cm)} cm)."))
+                    out.append(tm(
+                        "tata_letak.kertas",
+                        aktual=f"{a + ' ' if a else ''}({T.angka(round(ww, 2))} × {T.angka(round(hh, 2))} cm)",
+                        harapan=f"{b + ' ' if b else ''}({T.angka(tl.lebar_kertas_cm)} × {T.angka(tl.tinggi_kertas_cm)} cm)"))
         for attr, nama in (("top", "atas"), ("bottom", "bawah"), ("left", "kiri"), ("right", "kanan")):
             v, harap = getattr(s, f"{attr}_margin"), getattr(tl, f"margin_{nama}_cm")
             if v is not None and harap is not None and abs(v.cm - harap) > tol:
                 kunci = ("margin", nama, round(v.cm, 2))
                 if kunci not in sudah:
                     sudah.add(kunci)
-                    out.append(Temuan(K, f"Margin {nama} {T.angka(round(v.cm, 2))} cm, seharusnya {T.angka(harap)} cm."))
+                    out.append(tm("tata_letak.margin", sisi=nama, aktual=T.angka(round(v.cm, 2)), harapan=T.angka(harap)))
     judul = next((p for p in dm.paras if p.peran == "judul"), None)
     isi = next((p for p in dm.paras if p.peran in ("judul_bagian", "teks_isi")), None)
     if tl.kolom_isi and isi and dm.seksi:
         k = dm.kolom_seksi(isi.seksi)
         if k != tl.kolom_isi:
-            out.append(Temuan(K, f"Isi naskah ditulis {k} kolom, seharusnya {tl.kolom_isi} kolom.", para=isi.i))
+            out.append(tm("tata_letak.kolom_isi", para=isi.i, aktual=k, harapan=tl.kolom_isi))
     if tl.kolom_bagian_depan and judul and dm.seksi:
         k = dm.kolom_seksi(judul.seksi)
         if k != tl.kolom_bagian_depan:
-            out.append(Temuan(K, f"Bagian judul–abstrak ditulis {k} kolom, seharusnya {tl.kolom_bagian_depan} kolom.", para=judul.i))
+            out.append(tm("tata_letak.kolom_depan", para=judul.i, aktual=k, harapan=tl.kolom_bagian_depan))
     return out
 
 
-def _banding(p: Para, fe: FormatElemen, el: str, hanya_huruf: bool = False) -> list[tuple[str, object, str]]:
-    hasil: list[tuple[str, object, str]] = []
+def _banding(p: Para, fe: FormatElemen, el: str, hanya_huruf: bool = False) -> list[tuple[str, str, dict]]:
+    """Perbedaan format paragraf dengan template: (kode katalog, kunci kelompok, variabel komentar)."""
+    hasil: list[tuple[str, str, dict]] = []
     runs = [(r, len(r.teks.strip())) for r in p.runs if r.teks.strip()]
     total = sum(n for _, n in runs)
     if not total:
@@ -114,7 +121,7 @@ def _banding(p: Para, fe: FormatElemen, el: str, hanya_huruf: bool = False) -> l
                 salah[f] += n
         if salah and sum(salah.values()) >= max(3, 0.2 * total):
             f = max(salah, key=salah.get)
-            hasil.append(("font", f, f"font {f}, seharusnya {fe.font}."))
+            hasil.append(("format.font", f"font={f}", {"aktual": f, "harapan": fe.font}))
     if fe.ukuran_pt:
         salah_u: dict[float, int] = defaultdict(int)
         for r, n in runs:
@@ -122,53 +129,54 @@ def _banding(p: Para, fe: FormatElemen, el: str, hanya_huruf: bool = False) -> l
                 salah_u[r.ukuran[0]] += n
         if salah_u and sum(salah_u.values()) >= max(3, 0.3 * total):
             u = max(salah_u, key=salah_u.get)
-            hasil.append(("ukuran", u, f"ukuran font {T.angka(u)} pt, seharusnya {T.angka(fe.ukuran_pt)} pt."))
+            hasil.append(("format.ukuran", f"ukuran={u}", {"aktual": T.angka(u), "harapan": T.angka(fe.ukuran_pt)}))
     if hanya_huruf:
         return hasil
     rb, rm = p.rasio("tebal"), p.rasio("miring")
     if fe.tebal is True and rb is not None and rb < 0.6:
-        hasil.append(("tebal", "tidak", "belum dicetak tebal (bold)."))
+        hasil.append(("format.tebal_kurang", "tebal=tidak", {}))
     elif fe.tebal is False and rb is not None and rb > 0.6:
-        hasil.append(("tebal", "ya", "seharusnya tidak dicetak tebal."))
+        hasil.append(("format.tebal_lebih", "tebal=ya", {}))
     if fe.miring is True and rm is not None and rm < 0.6:
-        hasil.append(("miring", "tidak", "belum dicetak miring (italic)."))
+        hasil.append(("format.miring_kurang", "miring=tidak", {}))
     elif fe.miring is False and rm is not None and rm > 0.6:
-        hasil.append(("miring", "ya", "seharusnya tidak dicetak miring."))
+        hasil.append(("format.miring_lebih", "miring=ya", {}))
     inti = T.pisah_petunjuk(T._NOMOR.sub("", p.bersih))[0]  # sisa petunjuk template dilaporkan terpisah
     kapital = T.huruf_kapital_semua(inti) or (p.rasio("kapital") or 0) > 0.9
     if fe.kapital is True and not kapital:
-        hasil.append(("kapital", "tidak", "harus ditulis dengan huruf kapital semua."))
+        hasil.append(("format.kapital_kurang", "kapital=tidak", {}))
     elif fe.kapital is False and el == "sub_judul" and kapital:
-        hasil.append(("kapital", "ya", "tidak perlu kapital semua (gunakan huruf besar-kecil)."))
+        hasil.append(("format.kapital_lebih", "kapital=ya", {}))
     if fe.perataan:
         a = p.pp_nilai("perataan", "kiri") or "kiri"
         pendek = p.kata < 12
         setara = {a, fe.perataan} == {"kiri", "rata_kanan_kiri"} and pendek
         lewati = el in PERAN_INDENTASI and (pendek or p.pp_nilai("bernomor"))
         if a != fe.perataan and not setara and not lewati:
-            hasil.append(("perataan", a, f"perataan {LABEL_PERATAAN[a]}, seharusnya {LABEL_PERATAAN[fe.perataan]}."))
+            hasil.append(("format.perataan", f"perataan={a}", {"aktual": LABEL_PERATAAN[a], "harapan": LABEL_PERATAAN[fe.perataan]}))
     if fe.spasi_baris:
         sp = p.pp_nilai("spasi", ("kali", 1.0)) or ("kali", 1.0)
         if sp[0] == "kali" and abs(sp[1] - fe.spasi_baris) > 0.06:
-            hasil.append(("spasi", sp[1], f"spasi baris {T.angka(sp[1])}, seharusnya {T.angka(fe.spasi_baris)}."))
+            hasil.append(("format.spasi", f"spasi={sp[1]}", {"aktual": T.angka(sp[1]), "harapan": T.angka(fe.spasi_baris)}))
         elif sp[0] == "exact":
             uk = p.dominan("ukuran")[0] or 12
             kira = sp[1] / (uk * 1.15)
             if abs(kira - fe.spasi_baris) > 0.25:
-                hasil.append(("spasi", f"tepat {sp[1]}", f"spasi baris “tepat {T.angka(sp[1])} pt” (±{T.angka(round(kira, 1))}), seharusnya {T.angka(fe.spasi_baris)}."))
+                hasil.append(("format.spasi", f"spasi=tepat {sp[1]}",
+                              {"aktual": f"tepat {T.angka(sp[1])} pt (sekitar {T.angka(round(kira, 1))})", "harapan": T.angka(fe.spasi_baris)}))
     if fe.indentasi_pertama_cm is not None and el in PERAN_INDENTASI:
         daftar = p.pp_nilai("bernomor") or RX_DAFTAR.match(p.bersih) or (p.pp_nilai("indentasi_kiri", 0) or 0) > 0.6
         if not daftar:
             ind = p.pp_nilai("indentasi", 0.0) or 0.0
             if abs(ind - fe.indentasi_pertama_cm) > 0.15:
-                hasil.append(("indentasi", round(ind, 2),
-                              f"indentasi baris pertama {_label_indentasi(ind)}, seharusnya {_label_indentasi(fe.indentasi_pertama_cm)}."))
+                hasil.append(("format.indentasi", f"indentasi={round(ind, 2)}",
+                              {"aktual": _label_indentasi(ind), "harapan": _label_indentasi(fe.indentasi_pertama_cm)}))
     for k in ("sebelum", "sesudah"):
         harap = getattr(fe, f"spasi_{k}_pt")
         if harap is not None:
             v = p.pp_nilai(k, 0.0) or 0.0
             if abs(v - harap) > 1.0:
-                hasil.append((f"spasi_{k}", v, f"jarak {k} paragraf {T.angka(v)} pt, seharusnya {T.angka(harap)} pt."))
+                hasil.append((f"format.jarak_{k}", f"spasi_{k}={v}", {"aktual": T.angka(v), "harapan": T.angka(harap)}))
     return hasil
 
 
@@ -180,9 +188,9 @@ def cek_format(dm: DocModel, prof: Profil) -> list[Temuan]:
             continue
         fe = getattr(prof.format, el)
         nama = type(prof.format).model_fields[el].title
-        pendek = el == "teks_isi" and p.kata < 4  # mis. "Maka:", "TP = 15" — cukup cek huruf
-        for kode, aktual, pesan in _banding(p, fe, el, hanya_huruf=pendek):
-            out.append(Temuan("Format", f"{nama}: {pesan}", para=p.i, kelompok=f"format.{el}.{kode}={aktual}"))
+        pendek = el == "teks_isi" and p.kata < 4  # mis. "Maka:", "TP = 15": cukup cek huruf
+        for kode, kunci, data in _banding(p, fe, el, hanya_huruf=pendek):
+            out.append(KT.temuan(prof, "Format", kode, para=p.i, kelompok=f"format.{el}.{kunci}", elemen=nama, **data))
     fe = prof.format.isi_tabel
     for t in dm.tabel:
         paras = [p for p in t.paras if p.peran == "isi_tabel" and not p.kosong]
@@ -190,17 +198,17 @@ def cek_format(dm: DocModel, prof: Profil) -> list[Temuan]:
             continue
         gabung = Para(i=paras[0].i, el=None, teks="", bersih="x", petunjuk=[], style_id=None, style_nama="", pp={},
                       runs=[r for p in paras for r in p.runs])
-        for kode, aktual, pesan in _banding(gabung, fe, "isi_tabel", hanya_huruf=True):
-            out.append(Temuan("Format", f"Isi tabel: {pesan}", para=paras[0].i, kelompok=f"format.isi_tabel.{kode}={aktual}"))
+        for kode, kunci, data in _banding(gabung, fe, "isi_tabel", hanya_huruf=True):
+            out.append(KT.temuan(prof, "Format", kode, para=paras[0].i, kelompok=f"format.isi_tabel.{kunci}", elemen="Isi tabel", **data))
     return out
 
 
 def cek_struktur(dm: DocModel, prof: Profil) -> list[Temuan]:
     st, out, K = prof.struktur, [], "Struktur"
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
     heads = [p for p in dm.paras if p.peran == "judul_bagian" and not p.kosong]
     if not heads:
-        out.append(Temuan(K, "Tidak ada judul bagian yang terdeteksi (mis. PENDAHULUAN, METODE). Tulis judul bagian "
-                             "di baris tersendiri, cetak tebal atau pakai style Heading."))
+        out.append(tm("struktur.tanpa_judul_bagian"))
     if st.bagian and heads:
         def skor(b, p) -> float:
             n, t = T.normalisasi_judul(p.bersih), T.normalisasi_judul(b.judul)
@@ -225,13 +233,13 @@ def cek_struktur(dm: DocModel, prof: Profil) -> list[Temuan]:
                 if b.wajib:
                     nxt = next((cocok_b[j][0] for j in range(bi + 1, len(st.bagian)) if j in cocok_b), None)
                     para = heads[nxt].i if nxt is not None else heads[-1].i
-                    posisi = " (seharusnya sebelum bagian ini)" if nxt is not None else ""
-                    out.append(Temuan(K, f"Bagian “{b.judul}” tidak ditemukan{posisi}.", para=para))
+                    kode = "struktur.bagian_hilang_sebelum" if nxt is not None else "struktur.bagian_hilang"
+                    out.append(tm(kode, para=para, bagian=b.judul))
                 continue
             hi, s = cocok_b[bi]
             inti = T._NOMOR.sub("", heads[hi].bersih).strip()
             if s < 1.0 and st.nama_harus_sama:
-                out.append(Temuan(K, f"Judul bagian “{inti}” sebaiknya ditulis “{b.judul}” sesuai template.", tingkat="saran", para=heads[hi].i))
+                out.append(tm("struktur.nama_bagian", para=heads[hi].i, aktual=inti, harapan=b.judul))
             if b.sub_bagian:
                 awal = heads[hi].i
                 akhir = heads[hi + 1].i if hi + 1 < len(heads) else len(dm.paras)
@@ -240,7 +248,7 @@ def cek_struktur(dm: DocModel, prof: Profil) -> list[Temuan]:
                 for sb in b.sub_bagian:
                     ns = T.normalisasi_judul(sb)
                     if not any(ns == x or ns in x or SequenceMatcher(None, ns, x).ratio() > 0.8 for x in subs):
-                        out.append(Temuan(K, f"Subbagian “{sb}” pada bagian “{b.judul}” tidak ditemukan.", para=heads[hi].i))
+                        out.append(tm("struktur.subbagian_hilang", para=heads[hi].i, subbagian=sb, bagian=b.judul))
         if st.cek_urutan:
             maks = -1
             for hi in range(len(heads)):
@@ -249,7 +257,7 @@ def cek_struktur(dm: DocModel, prof: Profil) -> list[Temuan]:
                 bi = cocok_h[hi]
                 if bi < maks:
                     inti = T._NOMOR.sub("", heads[hi].bersih).strip()
-                    out.append(Temuan(K, f"Urutan bagian tidak sesuai template: “{inti}” seharusnya muncul sebelum “{st.bagian[maks].judul}”.", para=heads[hi].i))
+                    out.append(tm("struktur.urutan", para=heads[hi].i, bagian=inti, sebelum=st.bagian[maks].judul))
                 maks = max(maks, bi)
     if st.penomoran_judul:
         for p in dm.paras:
@@ -257,35 +265,37 @@ def cek_struktur(dm: DocModel, prof: Profil) -> list[Temuan]:
                 continue
             bernomor = bool(T.nomor_judul(p.bersih)[0]) or bool(p.pp_nilai("bernomor"))
             if st.penomoran_judul == "wajib" and not bernomor:
-                out.append(Temuan(K, "Judul bagian/subjudul belum diberi nomor (mis. 1., 2.1).", para=p.i, kelompok="struktur.nomor"))
+                out.append(tm("struktur.nomor_wajib", para=p.i, kelompok="struktur.nomor"))
             elif st.penomoran_judul == "dilarang" and bernomor:
-                out.append(Temuan(K, "Judul bagian/subjudul tidak perlu diberi nomor.", para=p.i, kelompok="struktur.nomor"))
+                out.append(tm("struktur.nomor_dilarang", para=p.i, kelompok="struktur.nomor"))
     return out
 
 
 def cek_judul(dm: DocModel, prof: Profil) -> list[Temuan]:
     aj, out, K = prof.judul, [], "Judul"
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
     jp = [p for p in dm.paras if p.peran == "judul" and not p.kosong]
     if not jp:
-        return [Temuan(K, "Judul artikel tidak terdeteksi.")]
+        return [tm("judul.tidak_ada")]
     n = sum(p.kata for p in jp)
-    salah = _rentang(n, aj.min_kata, aj.maks_kata, "kata")
-    if salah:
-        out.append(Temuan(K, f"Judul terdiri atas {n} kata; {salah}.", para=jp[0].i))
+    batas = _batas(n, aj.min_kata, aj.maks_kata, "kata")
+    if batas:
+        out.append(tm("judul.jumlah_kata", para=jp[0].i, **batas))
     je = [p for p in dm.paras if p.peran == "judul_inggris" and not p.kosong]
     if aj.judul_inggris == "wajib" and not je:
-        out.append(Temuan(K, "Judul bahasa Inggris belum ada.", para=jp[-1].i))
+        out.append(tm("judul.inggris_wajib", para=jp[-1].i))
     elif aj.judul_inggris == "tidak_boleh" and je:
-        out.append(Temuan(K, "Template tidak meminta judul bahasa Inggris.", tingkat="saran", para=je[0].i))
+        out.append(tm("judul.inggris_tidak_perlu", para=je[0].i))
     if je and aj.maks_kata_inggris:
         ne = sum(p.kata for p in je)
         if ne > aj.maks_kata_inggris:
-            out.append(Temuan(K, f"Judul bahasa Inggris {ne} kata; maksimal {aj.maks_kata_inggris} kata.", para=je[0].i))
+            out.append(tm("judul.inggris_jumlah_kata", para=je[0].i, jumlah=ne, maksimal=aj.maks_kata_inggris))
     return out
 
 
 def cek_abstrak(dm: DocModel, prof: Profil) -> list[Temuan]:
     ab, out, K = prof.abstrak, [], "Abstrak"
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
     judul = next((p.i for p in dm.paras if p.peran == "judul"), None)
     for peran, nama, mn, mx, aturan in (
         ("abstrak", "Abstrak", ab.min_kata, ab.maks_kata, "wajib" if ab.wajib else "opsional"),
@@ -295,22 +305,27 @@ def cek_abstrak(dm: DocModel, prof: Profil) -> list[Temuan]:
         if not ps:
             if aturan == "wajib":
                 jangkar = next((p.i for p in dm.paras if p.peran in ("abstrak", "kata_kunci", "label_abstrak")), judul)
-                out.append(Temuan(K, f"{nama} tidak ditemukan.", para=jangkar))
+                out.append(tm("abstrak.tidak_ada", para=jangkar, nama=nama))
             continue
         if aturan == "tidak_boleh":
-            out.append(Temuan(K, f"{nama} tidak diminta oleh template (abstrak hanya dalam bahasa Indonesia).", para=ps[0].i))
+            out.append(tm("abstrak.tidak_diminta", para=ps[0].i, nama=nama))
             continue
         n = sum(T.hitung_kata(_tanpa_label(p)) for p in ps)
-        salah = _rentang(n, mn, mx, "kata")
-        if salah:
-            out.append(Temuan(K, f"{nama} terdiri atas {n} kata; {salah}.", para=ps[0].i))
+        batas = _batas(n, mn, mx, "kata")
+        if batas:
+            out.append(tm("abstrak.jumlah_kata", para=ps[0].i, nama=nama, **batas))
         if ab.satu_paragraf and len(ps) > 1:
-            out.append(Temuan(K, f"{nama} terdiri atas {len(ps)} paragraf; seharusnya satu paragraf.", para=ps[1].i))
+            out.append(tm("abstrak.paragraf", para=ps[1].i, nama=nama, jumlah=len(ps)))
     return out
+
+
+def _tanda(t: str) -> str:
+    return {";": "titik koma (;)", ",": "koma (,)"}.get(t, f"“{t}”")
 
 
 def cek_kata_kunci(dm: DocModel, prof: Profil) -> list[Temuan]:
     kk, out, K = prof.kata_kunci, [], "Kata Kunci"
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
     for peran, nama, perlu in (
         ("kata_kunci", "Kata kunci", kk.wajib),
         ("kata_kunci_inggris", "Keywords", prof.abstrak.abstrak_inggris == "wajib"),
@@ -319,21 +334,21 @@ def cek_kata_kunci(dm: DocModel, prof: Profil) -> list[Temuan]:
         if not ps:
             if perlu:
                 jangkar = next((p.i for p in reversed(dm.paras) if p.peran in (("abstrak",) if peran == "kata_kunci" else ("abstrak_inggris",))), None)
-                out.append(Temuan(K, f"{nama} tidak ditemukan.", para=jangkar))
+                out.append(tm("kata_kunci.tidak_ada", para=jangkar, nama=nama))
             continue
         p = ps[0]
         t = _tanpa_label(p).strip().rstrip(".").strip()
         pem = ";" if ";" in t else ("," if "," in t else None)
         item = [x.strip().strip(".") for x in (t.split(pem) if pem else [t]) if x.strip().strip(".")]
         if kk.pemisah and pem and pem != kk.pemisah and len(item) > 1:
-            out.append(Temuan(K, f"{nama} dipisahkan tanda “{pem}”, seharusnya “{kk.pemisah}”.", para=p.i))
-        salah = _rentang(len(item), kk.min_jumlah, kk.maks_jumlah, "kata kunci")
-        if salah:
-            out.append(Temuan(K, f"Jumlah {nama.lower()} {len(item)}; {salah}.", para=p.i))
+            out.append(tm("kata_kunci.pemisah", para=p.i, nama=nama, aktual=_tanda(pem), harapan=_tanda(kk.pemisah)))
+        batas = _batas(len(item), kk.min_jumlah, kk.maks_jumlah, "kata kunci")
+        if batas:
+            out.append(tm("kata_kunci.jumlah", para=p.i, nama=nama, **batas))
         if kk.huruf_kecil:
             besar = [x for x in item if x[:1].isupper() and not x.isupper()]
             if besar:
-                out.append(Temuan(K, f"{nama} sebaiknya huruf kecil (kecuali singkatan): {', '.join(besar[:4])}.", tingkat="saran", para=p.i))
+                out.append(tm("kata_kunci.huruf_kecil", para=p.i, nama=nama, daftar=", ".join(besar[:4])))
     return out
 
 
@@ -350,11 +365,11 @@ def cek_paragraf(dm: DocModel, prof: Profil) -> list[Temuan]:
             continue
         n = len(T.pecah_kalimat(p.bersih))
         if ap.min_kalimat and n < ap.min_kalimat:
-            out.append(Temuan("Paragraf", f"Paragraf hanya {n} kalimat; minimal {ap.min_kalimat} kalimat (kalimat utama + penjelas).",
-                              tingkat="saran", para=p.i, kelompok="paragraf.min"))
+            out.append(KT.temuan(prof, "Paragraf", "paragraf.kurang_kalimat", para=p.i, kelompok="paragraf.min",
+                                 jumlah=n, minimal=ap.min_kalimat))
         elif ap.maks_kalimat and n > ap.maks_kalimat:
-            out.append(Temuan("Paragraf", f"Paragraf terdiri atas {n} kalimat; maksimal {ap.maks_kalimat} kalimat.",
-                              tingkat="saran", para=p.i, kelompok="paragraf.maks"))
+            out.append(KT.temuan(prof, "Paragraf", "paragraf.lebih_kalimat", para=p.i, kelompok="paragraf.maks",
+                                 jumlah=n, maksimal=ap.maks_kalimat))
     return out
 
 
@@ -389,6 +404,7 @@ def _tabel_tata_letak(t) -> bool:
 
 def cek_tabel_gambar(dm: DocModel, prof: Profil) -> list[Temuan]:
     tg, out, K = prof.tabel_gambar, [], "Tabel & Gambar"
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
     rujukan = " ".join(p.bersih for p in dm.paras if p.peran in ("teks_isi", "sub_judul", "judul_bagian", "sumber"))
     for jenis, peran, label, rx, pos_harap, alias in (
         ("tabel", "judul_tabel", "Tabel", CAP_TABEL, tg.posisi_judul_tabel, r"tabel|table|tab\."),
@@ -402,16 +418,13 @@ def cek_tabel_gambar(dm: DocModel, prof: Profil) -> list[Temuan]:
             if n is None:
                 continue
             if tg.penomoran_berurutan and n != harap:
-                out.append(Temuan(K, f"Penomoran {label.lower()} tidak berurutan: “{label} {n}”, seharusnya “{label} {harap}”.",
-                                  para=p.i, kelompok=f"tg.nomor.{jenis}"))
+                out.append(tm("tabel_gambar.nomor", para=p.i, kelompok=f"tg.nomor.{jenis}", jenis=jenis, label=label, aktual=n, harapan=harap))
             harap = n + 1
             pos = p.ext.get("posisi")
             if pos_harap and pos in ("atas", "bawah") and pos != pos_harap:
-                out.append(Temuan(K, f"Judul {label.lower()} diletakkan di {pos} {label.lower()}; seharusnya di {pos_harap}.",
-                                  para=p.i, kelompok=f"tg.posisi.{jenis}"))
+                out.append(tm("tabel_gambar.posisi_judul", para=p.i, kelompok=f"tg.posisi.{jenis}", jenis=jenis, aktual=pos, harapan=pos_harap))
             if tg.wajib_dirujuk and not re.search(rf"\b(?:{alias})\s*{n}\b", rujukan, re.I):
-                out.append(Temuan(K, f"{label} {n} belum dirujuk di dalam teks (mis. “... seperti pada {label} {n}”).",
-                                  para=p.i, kelompok=f"tg.rujuk.{jenis}"))
+                out.append(tm("tabel_gambar.belum_dirujuk", para=p.i, kelompok=f"tg.rujuk.{jenis}", label=label, nomor=n))
     if tg.wajib_judul:
         for t in dm.tabel:
             if any(p.peran == "depan_lain" for p in t.paras) or _tabel_tata_letak(t):
@@ -424,12 +437,11 @@ def cek_tabel_gambar(dm: DocModel, prof: Profil) -> list[Temuan]:
                 label = "Tabel"
             if not punya:
                 jangkar = next((p.i for p in t.paras if p.runs), None)
-                out.append(Temuan(K, f"{label} ini tampaknya belum memiliki judul (mis. “{label} 1. ...”).", tingkat="saran",
-                                  para=jangkar, kelompok=f"tg.tanpa_judul.{label}"))
+                out.append(tm("tabel_gambar.tanpa_judul", para=jangkar, kelompok=f"tg.tanpa_judul.{label}", label=label))
         for p in dm.paras:
             if p.peran == "gambar" and not p.dalam_tabel and p.ada_gambar:
                 if not _tetangga(dm, p.blok, lambda q: q.peran == "judul_gambar"):
-                    out.append(Temuan(K, "Gambar ini belum memiliki judul (mis. “Gambar 1. ...”).", para=p.i, kelompok="tg.tanpa_judul.Gambar"))
+                    out.append(tm("tabel_gambar.gambar_tanpa_judul", para=p.i, kelompok="tg.tanpa_judul.Gambar"))
     return out
 
 
@@ -440,29 +452,28 @@ def jumlah_kata_naskah(dm: DocModel) -> int:
 
 def cek_naskah(dm: DocModel, prof: Profil) -> list[Temuan]:
     an, out, K = prof.naskah, [], "Naskah"
-    n = jumlah_kata_naskah(dm)
-    salah = _rentang(n, an.min_kata, an.maks_kata, "kata")
-    if salah:
-        out.append(Temuan(K, f"Panjang naskah ±{n} kata (tanpa daftar pustaka & isi tabel); {salah}."))
+    tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
+    batas = _batas(jumlah_kata_naskah(dm), an.min_kata, an.maks_kata, "kata")
+    if batas:
+        out.append(tm("naskah.jumlah_kata", **batas))
     if dm.halaman and (an.min_halaman or an.maks_halaman):
-        salah = _rentang(dm.halaman, an.min_halaman, an.maks_halaman, "halaman")
-        if salah:
-            out.append(Temuan(K, f"Naskah {dm.halaman} halaman (menurut metadata Word); {salah}."))
+        batas = _batas(dm.halaman, an.min_halaman, an.maks_halaman, "halaman")
+        if batas:
+            out.append(tm("naskah.halaman", **batas))
     if an.kata_terlarang:
         pola = re.compile(r"\b(" + "|".join(re.escape(k) for k in an.kata_terlarang if k.strip()) + r")\b", re.I)
         for p in dm.paras:
             if p.peran in ("teks_isi", "abstrak", "abstrak_inggris") and not p.kosong:
                 ketemu = sorted({m.group(1).lower() for m in pola.finditer(p.bersih)})
                 if ketemu:
-                    out.append(Temuan(K, f"Menggunakan kata yang tidak dianjurkan: {', '.join(ketemu)}.", para=p.i, kelompok="naskah.kata_terlarang"))
+                    out.append(tm("naskah.kata_terlarang", para=p.i, kelompok="naskah.kata_terlarang", daftar=", ".join(ketemu)))
     if an.cek_sisa_petunjuk:
         for p in dm.paras:
             if p.kosong:
                 continue
             seg = T.sisa_petunjuk(p.teks)
             if seg:
-                out.append(Temuan(K, f"Tampaknya masih ada petunjuk template yang belum dihapus: {seg[0][:80]}", tingkat="saran",
-                                  para=p.i, kelompok="naskah.petunjuk"))
+                out.append(tm("naskah.sisa_petunjuk", para=p.i, kelompok="naskah.petunjuk", petunjuk=seg[0][:80]))
     return out
 
 

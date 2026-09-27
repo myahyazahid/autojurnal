@@ -9,6 +9,7 @@ export interface Temuan {
   sumber: "bot" | "ai";
   diringkas: boolean;
   ditulis?: boolean; // benar-benar ditulis sebagai komentar di Word
+  kode?: string | null; // kunci katalog komentar
   cuplikan: string | null;
 }
 
@@ -142,6 +143,27 @@ export interface StatistikDasbor {
 }
 
 /** Dipancarkan saat sesi habis (HTTP 401) agar aplikasi kembali ke halaman masuk. */
+export interface VariabelKomentar {
+  nama: string;
+  arti: string;
+  contoh: string;
+}
+
+export interface EntriKomentar {
+  kode: string;
+  grup: string;
+  judul: string;
+  bawaan: string;
+  tingkat: Tingkat;
+  variabel: VariabelKomentar[];
+}
+
+export interface KatalogKomentar {
+  grup: string[];
+  entri: EntriKomentar[];
+  maks_panjang: number;
+}
+
 export const SESI_HABIS = "autojurnal:sesi-habis";
 
 async function minta<T>(url: string, init?: RequestInit): Promise<T> {
@@ -199,6 +221,10 @@ export const api = {
   ubahJurnal: (id: number, data: { nama: string; deskripsi: string; profil: Profil }) =>
     minta<JurnalRingkas>(`/api/jurnal/${id}`, json("PUT", data)),
   hapusJurnal: (id: number) => minta<{ ok: boolean }>(`/api/jurnal/${id}`, { method: "DELETE" }),
+  katalogKomentar: () => minta<KatalogKomentar>("/api/komentar/katalog"),
+  komentarJurnal: (id: number) => minta<{ jurnal_id: number; teks: Record<string, string> }>(`/api/jurnal/${id}/komentar`),
+  simpanKomentar: (id: number, teks: Record<string, string>) =>
+    minta<{ jurnal_id: number; teks: Record<string, string> }>(`/api/jurnal/${id}/komentar`, json("PUT", { teks })),
   imporJurnal: (berkas: File) => minta<JurnalRingkas>("/api/jurnal/impor", { method: "POST", body: form({ berkas }) }),
 
   cek: (naskah: File, jurnal_id: number, pakai_ai: boolean) =>
