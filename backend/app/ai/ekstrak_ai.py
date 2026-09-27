@@ -85,7 +85,7 @@ def perbaiki_dengan_ai(klien: KlienAI, prof: Profil, peta: list[dict], panduan: 
         f'- "bagian" harus salah satu dari: "Abstrak", "Seluruh naskah", {", ".join(json.dumps(j) for j in judul_bagian)}.\n'
         '- "catatan": daftar kalimat singkat tentang hal yang ambigu atau bertentangan di template.'
     )
-    jawab = klien.chat([{"role": "system", "content": SISTEM}, {"role": "user", "content": pesan_user}], maks_token=6000)
+    jawab = klien.chat([{"role": "system", "content": SISTEM}, {"role": "user", "content": pesan_user}], maks_token=16000)
     data = ambil_json(jawab)
 
     baru = json.loads(json.dumps(dasar))

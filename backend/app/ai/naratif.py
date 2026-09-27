@@ -65,7 +65,7 @@ def _cek_satu(klien: KlienAI, bagian: str, aturan: list[AturanNaratif], ps: list
         'Balas JSON: {"hasil": [{"no": <nomor aturan>, "sesuai": true/false, "penjelasan": "...", '
         '"paragraf": <nomor P paling relevan atau null>}]}'
     )
-    data = ambil_json(klien.chat([{"role": "system", "content": SISTEM}, {"role": "user", "content": pesan}], maks_token=2500))
+    data = ambil_json(klien.chat([{"role": "system", "content": SISTEM}, {"role": "user", "content": pesan}], maks_token=8000))
     sah = {p.i for p in ps}
     hasil = []
     for item in data.get("hasil") or []:

@@ -461,7 +461,7 @@ def tes_ai(m: TesAI, _: Pengguna = Admin_, s: Session = Depends(sesi)):
     k = _klien_uji(m, s)
     try:
         t0 = time.time()
-        jawab = k.chat([{"role": "user", "content": "Balas hanya dengan kata: SIAP"}], maks_token=10)
+        jawab = k.chat([{"role": "user", "content": "Balas hanya dengan kata: SIAP"}], maks_token=1024)
         return {"ok": True, "pesan": f"Terhubung ke {k.model} ({time.time() - t0:.1f} detik). Balasan: {jawab.strip()[:60]}"}
     except GalatAI as e:
         return {"ok": False, "pesan": str(e)}

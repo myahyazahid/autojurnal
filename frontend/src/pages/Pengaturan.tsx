@@ -1,7 +1,8 @@
-import { Bot, CircleCheck, CircleX, Copy, HardDrive, ListRestart, PlugZap, Save, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import { Bot, CircleCheck, CircleX, Copy, HardDrive, PlugZap, Save, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type KonfigurasiAuth, type Pengaturan as P } from "../lib/api";
 import { useToast } from "../lib/toast";
+import PemilihModel from "../components/PemilihModel";
 import { JudulHalaman, Kartu, KotakIkon, LogoGoogle, MemuatHalaman, Pesan, Tombol } from "../components/ui";
 
 export default function Pengaturan() {
@@ -13,6 +14,7 @@ export default function Pengaturan() {
   const [key, setKey] = useState("");
   const [retensi, setRetensi] = useState(24);
   const [daftarModel, setDaftarModel] = useState<string[]>([]);
+  const [galatModel, setGalatModel] = useState("");
   const [hasilTes, setHasilTes] = useState<{ ok: boolean; pesan: string } | null>(null);
   const [sibuk, setSibuk] = useState<"" | "simpan" | "tes" | "model">("");
 
@@ -22,6 +24,7 @@ export default function Pengaturan() {
       setBaseUrl(d.ai_base_url);
       setModel(d.ai_model);
       setRetensi(d.retensi_jam);
+      if (d.ai_base_url) ambilModel({ ai_base_url: d.ai_base_url }); // langsung tampilkan daftar model
     });
     api.konfigurasi().then(setKonf).catch(() => undefined);
   }, []);
@@ -48,12 +51,15 @@ export default function Pengaturan() {
     setSibuk("");
   }
 
-  async function ambilModel() {
+  async function ambilModel(data: { ai_base_url?: string; ai_api_key?: string } = uji) {
+    if (!data.ai_base_url) {
+      setGalatModel("Isi Base URL dulu.");
+      return;
+    }
     setSibuk("model");
-    const r = await api.modelAI(uji).catch((e) => ({ ok: false, model: [] as string[], pesan: (e as Error).message }));
+    const r = await api.modelAI(data).catch((e) => ({ ok: false, model: [] as string[], pesan: (e as Error).message }));
     setDaftarModel(r.model);
-    if (r.ok) toast("info", `${r.model.length} model tersedia`, "Pilih dari saran di kolom Model.");
-    else toast("galat", "Gagal mengambil model", r.pesan);
+    setGalatModel(r.ok ? "" : r.pesan ?? "Gagal mengambil daftar model.");
     setSibuk("");
   }
 
@@ -91,11 +97,7 @@ export default function Pengaturan() {
               </div>
               <div>
                 <label className="label">Model</label>
-                <div className="flex gap-2">
-                  <input className="input" list="daftar-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="mis. gpt-4o-mini" />
-                  <Tombol ikon={ListRestart} onClick={ambilModel} memuat={sibuk === "model"} disabled={!baseUrl} title="Ambil daftar model" />
-                </div>
-                <datalist id="daftar-model">{daftarModel.map((m) => <option key={m} value={m} />)}</datalist>
+                <PemilihModel nilai={model} ubah={setModel} daftar={daftarModel} memuat={sibuk === "model"} galat={galatModel} muatUlang={() => ambilModel()} />
               </div>
             </div>
             {hasilTes && (

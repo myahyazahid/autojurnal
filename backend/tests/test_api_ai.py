@@ -100,3 +100,39 @@ def test_alur_api_dengan_akun(template_docx, naskah_docx, tmp_path):
         assert penulis.get("/api/cek").status_code == 401
         assert penulis.post("/api/auth/masuk", json={"email": "budi@gmail.com", "sandi": "salah"}).status_code == 401
         assert penulis.post("/api/auth/masuk", json={"email": "budi@gmail.com", "sandi": "rahasia123"}).status_code == 200
+
+
+def test_klien_membaca_streaming_sse_dan_json(monkeypatch):
+    """9router membalas SSE bila `stream` tidak dimatikan; klien harus tetap bisa membacanya."""
+    import httpx
+    import pytest
+
+    from app.ai import klien as K
+    from app.ai.klien import GalatAI
+
+    terkirim = {}
+
+    def palsu(balasan: str, jenis: str):
+        def request(metode, url, headers=None, timeout=None, json=None):
+            terkirim.update(json or {})
+            return httpx.Response(200, headers={"content-type": jenis}, text=balasan)
+        return request
+
+    sse = (
+        'data: {"choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}\n\n'
+        'data: {"choices":[{"index":0,"delta":{"content":"SI"},"finish_reason":null}]}\n\n'
+        'data: {"choices":[{"index":0,"delta":{"content":"AP"},"finish_reason":"stop"}]}\n\n'
+        "data: [DONE]\n"
+    )
+    k = KlienAI(base_url="http://router/v1", api_key="x", model="ag/gemini-3.1-pro-low")
+    monkeypatch.setattr(K.httpx, "request", palsu(sse, "text/event-stream"))
+    assert k.chat([{"role": "user", "content": "hai"}]) == "SIAP"
+    assert terkirim["stream"] is False
+
+    monkeypatch.setattr(K.httpx, "request", palsu('{"choices":[{"message":{"content":"OK"},"finish_reason":"stop"}]}', "application/json"))
+    assert k.chat([{"role": "user", "content": "hai"}]) == "OK"
+
+    kosong = '{"choices":[{"message":{"role":"assistant","content":""},"finish_reason":"max_tokens"}]}'
+    monkeypatch.setattr(K.httpx, "request", palsu(kosong, "application/json"))
+    with pytest.raises(GalatAI, match="kehabisan token"):
+        k.chat([{"role": "user", "content": "hai"}])
