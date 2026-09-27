@@ -92,6 +92,11 @@ export function Riwayat() {
                           <Lencana jenis={r.wajib === 0 ? "sukses" : "wajib"}>{r.wajib === 0 ? "siap kirim" : `${r.wajib} wajib`}</Lencana>
                           <Lencana jenis="saran">{r.saran} saran</Lencana>
                           {c.pakai_ai && <Lencana jenis="ai" ikon={Sparkles}>{r.ai}</Lencana>}
+                          {c.scope?.keputusan && (
+                            <Lencana jenis={c.scope.keputusan === "terima" ? "sukses" : "wajib"}>
+                              scope {c.scope.keputusan === "terima" ? "✓ terima" : "✗ tolak"}
+                            </Lencana>
+                          )}
                         </span>
                       ) : null}
                     </td>

@@ -121,8 +121,11 @@ function Kontrol({ s: s0, akar, nilai, ubah, kecil, kunci, saran }: {
     return <InputTag nilai={nilai ?? []} ubah={ubah} />;
   }
   const listId = kunci === "font" ? "daftar-font" : saran?.length ? `saran-${kunci}` : undefined;
-  if (kunci === "aturan") {
-    return <textarea className={cls} rows={2} value={nilai ?? ""} onChange={(e) => ubah(e.target.value)} />;
+  if (kunci === "aturan" || s.format === "textarea") {
+    return (
+      <textarea className={cls} rows={s.format === "textarea" ? 10 : 2} value={nilai ?? ""} onChange={(e) => ubah(e.target.value)}
+        placeholder={s.format === "textarea" ? "Tempel teks Focus and Scope dari situs jurnal…" : undefined} />
+    );
   }
   return (
     <>
@@ -279,7 +282,7 @@ function Objek({ s, akar, nilai, ubah, saran }: { s: S; akar: S; nilai: any; uba
     <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
       {entri.map(([k, ks0]) => {
         const { s: ks } = bukaNullable(ks0, akar);
-        const lebar = ks.type === "array" || k === "aturan" || ks.type === "object";
+        const lebar = ks.type === "array" || k === "aturan" || ks.type === "object" || ks.format === "textarea";
         const v = nilai?.[k];
         const set = (x: any) => ubah({ ...nilai, [k]: x });
         return (
@@ -314,7 +317,7 @@ function Objek({ s, akar, nilai, ubah, saran }: { s: S; akar: S; nilai: any; uba
 export default function SchemaForm({ skema, nilai, ubah, sembunyikan = [], hanyaBaca }: {
   skema: S; nilai: any; ubah: (v: any) => void; sembunyikan?: string[]; hanyaBaca?: boolean;
 }) {
-  const [buka, setBuka] = useState<Record<string, boolean>>({ tata_letak: true, format: true, struktur: true });
+  const [buka, setBuka] = useState<Record<string, boolean>>({ scope: true, tata_letak: true, format: true, struktur: true });
   const bagianJudul: string[] = (nilai?.struktur?.bagian ?? []).map((b: any) => b.judul).filter(Boolean);
   const saran = { bagian: ["Abstrak", "Seluruh naskah", ...bagianJudul] };
   return (

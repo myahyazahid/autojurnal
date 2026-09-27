@@ -1,9 +1,9 @@
 import {
   BadgeCheck, BookMarked, ChevronDown, Download, FileText, Files, Heading, Layers, LayoutTemplate, Lightbulb, ListTree,
-  MessageSquareText, OctagonAlert, Pilcrow, Sparkles, Table2, Tags, TriangleAlert, Type, type LucideIcon,
+  MessageSquareText, OctagonAlert, Pilcrow, Sparkles, Table2, Tags, Target, TriangleAlert, Type, type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { api, tanggal, type Cek, type Temuan } from "../lib/api";
+import { api, tanggal, type Cek, type HasilScope, type Temuan } from "../lib/api";
 import Donat, { PALET } from "./Donat";
 import { Kartu, Lencana, Pesan, TautanTombol } from "./ui";
 
@@ -54,6 +54,42 @@ function Vonis({ wajib, saran }: { wajib: number; saran: number }) {
           <div className="text-lg font-extrabold tracking-tight">{v.j}</div>
           <div className="text-sm text-white/85">{v.s}</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function KartuScope({ sc }: { sc: HasilScope }) {
+  if (sc.galat) return <Pesan jenis="peringatan" judul="Kesesuaian scope belum bisa dinilai">{sc.galat}</Pesan>;
+  const terima = sc.keputusan === "terima";
+  const warna = terima ? "#10b981" : "#f43f5e";
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border-2 p-5 ${terima ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-rose-500/40 bg-rose-500/[0.06]"}`}>
+      <div className="flex flex-wrap items-start gap-4">
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${terima ? "bg-emerald-500 shadow-emerald-500/30" : "bg-rose-500 shadow-rose-500/30"}`}>
+          <Target className="h-6 w-6" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-bold tracking-wide text-ink-3 uppercase">Kesesuaian Focus &amp; Scope · penilaian AI</div>
+          <div className={`mt-0.5 text-xl font-extrabold tracking-tight ${terima ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+            {terima ? "DITERIMA — sesuai scope jurnal" : "DITOLAK — di luar scope jurnal"}
+          </div>
+          {sc.alasan && <p className="mt-1.5 text-sm leading-relaxed text-ink">{sc.alasan}</p>}
+          {!!sc.bidang_cocok?.length && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {sc.bidang_cocok.map((b) => <span key={b} className="rounded-lg bg-panel px-2 py-1 text-[11px] font-semibold text-ink-2 ring-1 ring-line">{b}</span>)}
+            </div>
+          )}
+        </div>
+        {sc.skor != null && (
+          <div className="w-28 shrink-0 text-right">
+            <div className="text-3xl font-extrabold tabular-nums" style={{ color: warna }}>{sc.skor}<span className="text-sm text-ink-3">/100</span></div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-panel-3">
+              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${sc.skor}%`, background: warna }} />
+            </div>
+            <div className="mt-1 text-[10px] text-ink-3">skor kesesuaian</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -169,6 +205,7 @@ export default function HasilCek({ cek }: { cek: Cek }) {
         )}
       </div>
 
+      {cek.scope && <KartuScope sc={cek.scope} />}
       {r && <Vonis wajib={r.wajib} saran={r.saran} />}
       {cek.galat_ai && <Pesan jenis="peringatan" judul="Pengecekan AI gagal — hasil bot tetap lengkap">{cek.galat_ai}</Pesan>}
 

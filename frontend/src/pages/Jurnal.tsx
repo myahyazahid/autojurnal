@@ -69,7 +69,10 @@ export function DaftarJurnal() {
                     <Link to={`/jurnal/${j.id}`} className="block truncate text-base font-bold text-ink hover:text-brand">{j.nama}</Link>
                     <div className="truncate text-xs text-ink-3">{j.deskripsi || j.template_nama || "tanpa keterangan"}</div>
                   </div>
-                  {j.jumlah_naratif > 0 && <Lencana jenis="ai" ikon={Sparkles}>{j.jumlah_naratif}</Lencana>}
+                  <span className="flex shrink-0 gap-1">
+                    {j.punya_scope && <Lencana jenis="info">Scope</Lencana>}
+                    {j.jumlah_naratif > 0 && <Lencana jenis="ai" ikon={Sparkles}>{j.jumlah_naratif}</Lencana>}
+                  </span>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {j.bagian.map((b, i) => (
@@ -301,7 +304,7 @@ export function EditJurnal() {
     try {
       const h = await api.ekstrakUlang(jid, pakaiAI, panduan);
       setHasil(h);
-      setProfil(h.profil);
+      setProfil({ ...h.profil, scope: profil.scope }); // scope diisi manual, jangan ditimpa
       toast("info", "Template dibaca ulang", "Tinjau lalu tekan Simpan.");
     } catch (e) {
       toast("galat", "Gagal membaca ulang", (e as Error).message);

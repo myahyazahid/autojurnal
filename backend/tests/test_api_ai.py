@@ -136,3 +136,36 @@ def test_klien_membaca_streaming_sse_dan_json(monkeypatch):
     monkeypatch.setattr(K.httpx, "request", palsu(kosong, "application/json"))
     with pytest.raises(GalatAI, match="kehabisan token"):
         k.chat([{"role": "user", "content": "hai"}])
+
+
+class KlienScope(KlienAI):
+    def __init__(self, balasan: str):
+        super().__init__(base_url="http://tiruan", api_key="", model="tiruan-scope")
+        self.balasan, self.pesan = balasan, ""
+
+    def chat(self, pesan, suhu=0.1, maks_token=8000):
+        self.pesan = pesan[-1]["content"]
+        return self.balasan
+
+
+def test_penilaian_scope_terima_tolak(template_docx, naskah_docx, tmp_path):
+    import docx
+
+    from app.ai.scope import nilai_scope
+
+    prof, _ = ekstrak_template(str(template_docx))
+    prof.scope.fokus_dan_ruang_lingkup = "1. Data Mining\n2. E-Business\n3. Human-Computer Interaction"
+    k = KlienScope('{"keputusan": "tolak", "skor": 22, "bidang_cocok": [], "alasan": "Kontribusi utama pada pedagogi, bukan sistem informasi."}')
+    keluar = tmp_path / "scope.docx"
+    hasil = cek_naskah(str(naskah_docx), prof, "Uji", keluar, penilai_scope=lambda dm, p: nilai_scope(k, dm, p))
+    assert hasil["scope"]["keputusan"] == "tolak" and hasil["scope"]["skor"] == 22
+    # AI menerima scope + ringkasan menyeluruh naskah (judul, abstrak, kata kunci, struktur, isi bagian)
+    for kunci in ("FOCUS & SCOPE JURNAL", "Data Mining", "JUDUL:", "ABSTRAK:", "KATA KUNCI:", "STRUKTUR:", "[PENDAHULUAN]"):
+        assert kunci in k.pesan
+    teks = " | ".join(c.text for c in docx.Document(str(keluar)).comments)
+    assert "Kesesuaian scope: DITOLAK (22/100) — Kontribusi utama pada pedagogi" in teks
+
+    # putusan yang tidak dikenali / AI gagal -> dicatat, cek bot tetap selesai
+    rusak = KlienScope('{"keputusan": "mungkin"}')
+    hasil = cek_naskah(str(naskah_docx), prof, "Uji", tmp_path / "s2.docx", penilai_scope=lambda dm, p: nilai_scope(rusak, dm, p))
+    assert "galat" in hasil["scope"] and hasil["ringkasan"]["wajib"] > 0

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import IO, Callable
 
@@ -12,6 +13,7 @@ from .profil import Profil
 from .temuan import Temuan
 
 PemeriksaTambahan = Callable[[DocModel, Profil], list[Temuan]]
+PenilaiScope = Callable[[DocModel, Profil], dict]
 
 
 def cek_naskah(
@@ -22,16 +24,28 @@ def cek_naskah(
     tambahan: PemeriksaTambahan | None = None,
     penulis: str | None = None,
     pemeriksa: str | None = None,
+    penilai_scope: PenilaiScope | None = None,
 ) -> dict:
     dm = DocModel(sumber if not isinstance(sumber, Path) else str(sumber))
     temuan, stat = periksa(dm, prof)
-    galat_ai = None
-    if tambahan is not None:
-        try:
-            temuan.extend(tambahan(dm, prof))
-        except Exception as e:  # AI gagal tidak boleh menggagalkan cek bot
-            galat_ai = str(e)
-    daftar = tulis_komentar(dm, temuan, prof, nama_jurnal, penulis=penulis, pemeriksa=pemeriksa)
+
+    # AI (naratif & scope) berjalan paralel; kegagalan AI tidak boleh menggagalkan cek bot
+    galat_ai, scope = None, None
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_naratif = ex.submit(tambahan, dm, prof) if tambahan else None
+        f_scope = ex.submit(penilai_scope, dm, prof) if penilai_scope else None
+        if f_naratif:
+            try:
+                temuan.extend(f_naratif.result())
+            except Exception as e:
+                galat_ai = str(e)
+        if f_scope:
+            try:
+                scope = f_scope.result()
+            except Exception as e:
+                scope = {"galat": f"Penilaian scope gagal: {e}"}
+
+    daftar = tulis_komentar(dm, temuan, prof, nama_jurnal, penulis=penulis, pemeriksa=pemeriksa, scope=scope)
     dm.doc.save(str(keluaran))
     # "masalah" = jenis masalah unik (kemunculan berulang dihitung satu), "kemunculan" = semua temuan
     unik: dict[str, Temuan] = {}
@@ -51,4 +65,5 @@ def cek_naskah(
         "statistik": stat,
         "temuan": daftar,
         "galat_ai": galat_ai,
+        "scope": scope,
     }

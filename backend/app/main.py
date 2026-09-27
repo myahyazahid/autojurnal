@@ -25,6 +25,7 @@ from . import auth
 from .ai.ekstrak_ai import perbaiki_dengan_ai
 from .ai.klien import GalatAI, KlienAI
 from .ai.naratif import cek_naratif
+from .ai.scope import nilai_scope
 from .auth import nama_komentar, pengguna_saat_ini, wajib_admin
 from .config import (COOKIE_AMAN, DIR_HASIL, DIR_SEMENTARA, DIR_TEMPLATE, FRONTEND_DIST, LAMA_SESI_HARI, MAKS_MB,
                      SECRET_KEY, VERSI)
@@ -158,6 +159,7 @@ def _ringkas_jurnal(j: Jurnal) -> dict:
         "diubah": iso(j.diubah),
         "bagian": [b["judul"] for b in p.get("struktur", {}).get("bagian", [])],
         "jumlah_naratif": len(p.get("aturan_naratif", [])),
+        "punya_scope": bool((p.get("scope") or {}).get("fokus_dan_ruang_lingkup", "").strip()) and (p.get("scope") or {}).get("cek_ai", True),
     }
 
 
@@ -293,7 +295,7 @@ def _baris_cek(c: Pengecekan, lengkap: bool = False) -> dict:
         "pengguna_id": c.pengguna_id, "pengguna_nama": c.pengguna_nama,
         "pakai_ai": c.pakai_ai, "status": c.status, "pesan_galat": c.pesan_galat,
         "file_tersedia": bool(c.file_hasil) and (DIR_HASIL / c.file_hasil).exists(),
-        "dibuat": iso(c.dibuat), "ringkasan": hasil.get("ringkasan"),
+        "dibuat": iso(c.dibuat), "ringkasan": hasil.get("ringkasan"), "scope": hasil.get("scope"),
     }
     if lengkap:
         d.update(statistik=hasil.get("statistik"), temuan=hasil.get("temuan", []), galat_ai=hasil.get("galat_ai"),
@@ -319,7 +321,7 @@ async def cek(naskah: UploadFile = File(...), jurnal_id: int = Form(...), pakai_
     masuk = DIR_SEMENTARA / f"naskah_{cid}.docx"
     await simpan_unggahan(naskah, masuk)
     keluar = DIR_HASIL / f"{cid}.docx"
-    tambahan = None
+    tambahan = penilai_scope = None
     if pakai_ai:
         k = klien_ai(s)
         if not k.aktif:
@@ -327,12 +329,14 @@ async def cek(naskah: UploadFile = File(...), jurnal_id: int = Form(...), pakai_
             raise HTTPException(400, "AI belum diatur. Minta admin mengisinya di Pengaturan, atau matikan opsi AI.")
         if prof.aturan_naratif:
             tambahan = lambda dm, pr: cek_naratif(k, dm, pr)  # noqa: E731
+        if prof.scope.cek_ai and prof.scope.fokus_dan_ruang_lingkup.strip():
+            penilai_scope = lambda dm, pr: nilai_scope(k, dm, pr)  # noqa: E731
     penulis = nama_komentar(u)
     pemeriksa = f"{u.nama or u.email} <{u.email}>"
     row = Pengecekan(id=cid, pengguna_id=u.id, pengguna_nama=u.nama or u.email, jurnal_id=j.id, jurnal_nama=j.nama,
                      nama_file=naskah.filename or "naskah.docx", pakai_ai=pakai_ai)
     try:
-        hasil = await asyncio.to_thread(cek_naskah, str(masuk), prof, j.nama, keluar, tambahan, penulis, pemeriksa)
+        hasil = await asyncio.to_thread(cek_naskah, str(masuk), prof, j.nama, keluar, tambahan, penulis, pemeriksa, penilai_scope)
         hasil["penulis_komentar"] = penulis
         row.hasil_json = json.dumps(hasil, ensure_ascii=False)
         row.file_hasil = keluar.name

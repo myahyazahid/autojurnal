@@ -34,7 +34,7 @@ def _inisial(nama: str) -> str:
 
 
 def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal: str,
-                   penulis: str | None = None, pemeriksa: str | None = None) -> list[dict]:
+                   penulis: str | None = None, pemeriksa: str | None = None, scope: dict | None = None) -> list[dict]:
     """Tulis komentar ke dm.doc (belum disimpan). Kembalikan temuan + status tampil/diringkas.
 
     `penulis` = nama yang tampil sebagai pembuat komentar di Word (akun yang login);
@@ -92,6 +92,10 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
         for i, t in enumerate(masuk):
             unik.setdefault(t.kelompok or f"#{i}", t)
         isi = [f"Hasil cek otomatis — {nama_jurnal}"]
+        if scope and scope.get("keputusan"):
+            putusan = "DITERIMA" if scope["keputusan"] == "terima" else "DITOLAK"
+            skor = f" ({scope['skor']}/100)" if scope.get("skor") is not None else ""
+            isi.append(f"Kesesuaian scope: {putusan}{skor} — {scope.get('alasan', '')}".rstrip(" —"))
         if unik:
             isi.append(f"{len(unik)} hal perlu diperbaiki (ditandai di {len(masuk)} tempat pada naskah).")
         else:

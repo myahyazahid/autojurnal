@@ -50,6 +50,7 @@ export interface Cek {
   temuan?: Temuan[];
   galat_ai?: string | null;
   penulis_komentar?: string | null;
+  scope?: HasilScope | null;
 }
 
 export interface JurnalRingkas {
@@ -61,6 +62,16 @@ export interface JurnalRingkas {
   diubah: string;
   bagian: string[];
   jumlah_naratif: number;
+  punya_scope?: boolean;
+}
+
+export interface HasilScope {
+  keputusan?: "terima" | "tolak";
+  skor?: number | null;
+  bidang_cocok?: string[];
+  alasan?: string;
+  model?: string;
+  galat?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

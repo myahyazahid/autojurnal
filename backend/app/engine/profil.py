@@ -161,7 +161,18 @@ class PengaturanKomentar(_Dasar):
     )
 
 
+class AturanScope(_Dasar):
+    fokus_dan_ruang_lingkup: str = Field(
+        "", title="Focus & Scope jurnal",
+        description="Tempel apa adanya dari halaman Focus and Scope situs jurnal (paragraf maupun daftar bidang)",
+        json_schema_extra={"format": "textarea"},
+    )
+    cek_ai: bool = Field(True, title="Nilai kesesuaian naskah dengan scope (AI) — putusan terima/tolak")
+
+
 class Profil(_Dasar):
+    scope: AturanScope = Field(default_factory=AturanScope, title="Focus & Scope",
+                               description="Dipakai AI untuk memutuskan naskah diterima/ditolak dari sisi ruang lingkup")
     tata_letak: TataLetak = Field(default_factory=TataLetak, title="Tata letak halaman")
     format: FormatPerElemen = Field(default_factory=FormatPerElemen, title="Format per elemen")
     struktur: Struktur = Field(default_factory=Struktur, title="Struktur naskah")

@@ -70,7 +70,7 @@ export default function CekNaskah() {
   }, []);
 
   const jurnalDipilih = jurnal?.find((j) => j.id === pilihan);
-  const aiBisa = !!status?.ai_aktif && (jurnalDipilih?.jumlah_naratif ?? 0) > 0;
+  const aiBisa = !!status?.ai_aktif && ((jurnalDipilih?.jumlah_naratif ?? 0) > 0 || !!jurnalDipilih?.punya_scope);
 
   async function mulai() {
     if (!pilihan) return;
@@ -174,15 +174,17 @@ export default function CekNaskah() {
                     nyala={pakaiAI && aiBisa}
                     ubah={setPakaiAI}
                     nonaktif={!aiBisa}
-                    label={<span className="inline-flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Cek substansi dengan AI</span>}
+                    label={<span className="inline-flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Cek substansi & scope dengan AI</span>}
                     keterangan={
                       !status?.ai_aktif
                         ? pengguna?.peran === "admin"
                           ? <>AI belum diatur — isi di <Link className="font-semibold text-brand underline" to="/pengaturan">Pengaturan</Link>.</>
                           : "AI belum diaktifkan oleh admin."
                         : !aiBisa
-                          ? "Profil ini tidak punya aturan naratif."
-                          : `${jurnalDipilih?.jumlah_naratif} aturan isi dinilai ${status.ai_model}.`
+                          ? "Profil ini belum punya aturan naratif maupun Focus & Scope."
+                          : [jurnalDipilih?.punya_scope && "kesesuaian scope (terima/tolak)",
+                             jurnalDipilih?.jumlah_naratif ? `${jurnalDipilih.jumlah_naratif} aturan isi` : ""]
+                              .filter(Boolean).join(" + ") + ` dinilai ${status.ai_model}.`
                     }
                   />
                   {pakaiAI && aiBisa && (
