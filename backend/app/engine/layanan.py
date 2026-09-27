@@ -1,0 +1,53 @@
+"""Titik masuk mesin: cek satu naskah terhadap profil, tulis salinan .docx berkomentar."""
+from __future__ import annotations
+
+from collections import Counter
+from pathlib import Path
+from typing import IO, Callable
+
+from .anotasi import tulis_komentar
+from .docmodel import DocModel
+from .periksa import periksa
+from .profil import Profil
+from .temuan import Temuan
+
+PemeriksaTambahan = Callable[[DocModel, Profil], list[Temuan]]
+
+
+def cek_naskah(
+    sumber: str | Path | IO[bytes],
+    prof: Profil,
+    nama_jurnal: str,
+    keluaran: str | Path,
+    tambahan: PemeriksaTambahan | None = None,
+    penulis: str | None = None,
+    pemeriksa: str | None = None,
+) -> dict:
+    dm = DocModel(sumber if not isinstance(sumber, Path) else str(sumber))
+    temuan, stat = periksa(dm, prof)
+    galat_ai = None
+    if tambahan is not None:
+        try:
+            temuan.extend(tambahan(dm, prof))
+        except Exception as e:  # AI gagal tidak boleh menggagalkan cek bot
+            galat_ai = str(e)
+    daftar = tulis_komentar(dm, temuan, prof, nama_jurnal, penulis=penulis, pemeriksa=pemeriksa)
+    dm.doc.save(str(keluaran))
+    # "masalah" = jenis masalah unik (kemunculan berulang dihitung satu), "kemunculan" = semua temuan
+    unik: dict[str, Temuan] = {}
+    for i, t in enumerate(temuan):
+        unik.setdefault(t.kelompok or f"#{i}", t)
+    masalah = list(unik.values())
+    return {
+        "ringkasan": {
+            "masalah": len(masalah),
+            "kemunculan": len(temuan),
+            "wajib": sum(1 for t in masalah if t.tingkat == "wajib" and t.sumber == "bot"),
+            "saran": sum(1 for t in masalah if t.tingkat == "saran" and t.sumber == "bot"),
+            "ai": sum(1 for t in masalah if t.sumber == "ai"),
+            "per_kategori": dict(Counter(t.kategori for t in masalah)),
+        },
+        "statistik": stat,
+        "temuan": daftar,
+        "galat_ai": galat_ai,
+    }

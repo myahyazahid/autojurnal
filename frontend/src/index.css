@@ -1,0 +1,170 @@
+@import "tailwindcss";
+@import "@fontsource-variable/plus-jakarta-sans";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Token semantik: satu kelas (bg-panel, text-ink, border-line) otomatis benar di mode terang & gelap. */
+@theme inline {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --color-canvas: var(--c-canvas);
+  --color-panel: var(--c-panel);
+  --color-panel-2: var(--c-panel-2);
+  --color-panel-3: var(--c-panel-3);
+  --color-line: var(--c-line);
+  --color-line-2: var(--c-line-2);
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-brand: var(--c-brand);
+  --color-brand-2: var(--c-brand-2);
+  --color-brand-soft: var(--c-brand-soft);
+}
+
+:root {
+  --c-canvas: #f5f6fb;
+  --c-panel: #ffffff;
+  --c-panel-2: #f8f9fc;
+  --c-panel-3: #eef0f7;
+  --c-line: #e4e7f0;
+  --c-line-2: #d3d8e6;
+  --c-ink: #10132a;
+  --c-ink-2: #4a5170;
+  --c-ink-3: #8a90a8;
+  --c-brand: #5b4cf0;
+  --c-brand-2: #7c3aed;
+  --c-brand-soft: #eeebff;
+  color-scheme: light;
+}
+
+.dark {
+  --c-canvas: #090b16;
+  --c-panel: #111427;
+  --c-panel-2: #151931;
+  --c-panel-3: #1c2140;
+  --c-line: #232846;
+  --c-line-2: #30365a;
+  --c-ink: #eef0ff;
+  --c-ink-2: #aab0cf;
+  --c-ink-3: #6f7596;
+  --c-brand: #8b7cff;
+  --c-brand-2: #a78bfa;
+  --c-brand-soft: #1f1b4a;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-canvas text-ink antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: color-mix(in oklab, var(--c-brand) 30%, transparent);
+}
+
+/* ---- komponen dasar (di layer components agar utilitas seperti pl-10 tetap bisa menimpa) ---- */
+@layer components {
+  .input {
+    @apply w-full rounded-xl border border-line bg-panel px-3.5 py-2.5 text-sm text-ink shadow-xs outline-none transition
+      placeholder:text-ink-3 hover:border-line-2 focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .input-sm {
+    @apply w-full rounded-lg border border-line bg-panel px-2 py-1.5 text-xs text-ink outline-none transition
+      hover:border-line-2 focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:opacity-60;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[13px] font-semibold text-ink-2;
+  }
+
+  .bg-merek {
+    background-image: linear-gradient(120deg, #4f46e5 0%, #7c3aed 45%, #c026d3 100%);
+  }
+
+  .teks-merek {
+    background-image: linear-gradient(100deg, #6366f1, #a855f7 50%, #ec4899);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .kartu {
+    @apply rounded-2xl border border-line bg-panel shadow-[0_1px_2px_rgba(16,19,42,0.04),0_8px_24px_-12px_rgba(16,19,42,0.12)]
+      dark:shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_12px_32px_-16px_rgba(0,0,0,0.6)];
+  }
+
+  .kaca {
+    @apply border border-white/15 bg-white/10 backdrop-blur-md;
+  }
+
+  .grid-titik {
+    background-image: radial-gradient(color-mix(in oklab, var(--c-ink) 12%, transparent) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+}
+
+/* ---- animasi ---------------------------------------------------------------- */
+
+@keyframes muncul {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes melayang {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(18px, -22px) scale(1.06);
+  }
+}
+@keyframes kilau {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes naik {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animasi-muncul {
+  animation: muncul 0.35s ease-out both;
+}
+.animasi-melayang {
+  animation: melayang 14s ease-in-out infinite;
+}
+.animasi-naik {
+  animation: naik 3.5s ease-in-out infinite;
+}
+.kilau {
+  background: linear-gradient(90deg, var(--c-panel-3) 25%, var(--c-panel-2) 50%, var(--c-panel-3) 75%);
+  background-size: 200% 100%;
+  animation: kilau 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animasi-muncul,
+  .animasi-melayang,
+  .animasi-naik,
+  .kilau {
+    animation: none;
+  }
+}

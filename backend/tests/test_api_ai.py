@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+import json
+import re
+
+from app.ai.ekstrak_ai import perbaiki_dengan_ai
+from app.ai.klien import KlienAI, ambil_json
+from app.ai.naratif import cek_naratif
+from app.engine.ekstrak import ekstrak_template
+from app.engine.layanan import cek_naskah
+
+
+class KlienTiruan(KlienAI):
+    """Meniru endpoint OpenAI-compatible tanpa jaringan."""
+
+    def chat(self, pesan, suhu=0.1, maks_token=4000):
+        u = pesan[-1]["content"]
+        if "PROFIL HASIL BACAAN" in u:
+            return "```json\n" + json.dumps({
+                "profil": {"judul": {"maks_kata": 20}, "referensi": {"gaya_sitasi": "tidak-valid"}},
+                "aturan_naratif": [{"bagian": "Pendahuluan", "aturan": "Pendahuluan memuat research gap."}],
+                "catatan": ["contoh catatan"],
+            }) + "\n```"
+        p = re.findall(r"\[P(\d+)\]", u)
+        return json.dumps({"hasil": [{"no": 1, "sesuai": False, "penjelasan": "Belum ada research gap.", "paragraf": f"P{p[0]}"}]})
+
+
+def test_ambil_json_toleran():
+    assert ambil_json('Berikut:\n```json\n{"a": [1, 2,],}\n```') == {"a": [1, 2]}
+
+
+def test_ai_ekstrak_dan_naratif(template_docx, naskah_docx, tmp_path):
+    k = KlienTiruan(base_url="http://tiruan", api_key="", model="tiruan")
+    prof, peta = ekstrak_template(str(template_docx))
+    prof2, ubah = perbaiki_dengan_ai(k, prof, peta)
+    assert prof2.judul.maks_kata == 20
+    assert prof2.referensi.gaya_sitasi == prof.referensi.gaya_sitasi  # usulan tidak valid ditolak
+    assert [b.judul for b in prof2.struktur.bagian] == [b.judul for b in prof.struktur.bagian]
+    assert any("Maksimal kata judul" in u for u in ubah)
+    hasil = cek_naskah(str(naskah_docx), prof2, "Uji", tmp_path / "h.docx", lambda dm, p: cek_naratif(k, dm, p))
+    ai = [t for t in hasil["temuan"] if t["sumber"] == "ai"]
+    assert ai and ai[0]["para"] is not None and "research gap" in ai[0]["pesan"]
+
+
+def test_alur_api_dengan_akun(template_docx, naskah_docx, tmp_path):
+    import docx
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as admin, TestClient(app) as penulis:
+        # belum login -> ditolak
+        assert admin.get("/api/jurnal").status_code == 401
+        assert admin.get("/api/auth/konfigurasi").json()["google"] is False
+        # Google belum dikonfigurasi -> kembali ke halaman masuk dengan pesan
+        r = admin.get("/api/auth/google", follow_redirects=False)
+        assert r.status_code in (302, 307) and r.headers["location"].startswith("/masuk?galat=")
+
+        # akun pertama otomatis admin
+        a = admin.post("/api/auth/daftar", json={"nama": "Yahya Zahid", "email": "Yahya@Gmail.com", "sandi": "rahasia123"}).json()
+        assert a["peran"] == "admin" and a["email"] == "yahya@gmail.com"
+        assert admin.post("/api/auth/daftar", json={"nama": "x", "email": "yahya@gmail.com", "sandi": "rahasia123"}).status_code == 409
+
+        with open(template_docx, "rb") as f:
+            e = admin.post("/api/jurnal/ekstrak", files={"template": ("t.docx", f)}).json()
+        j = admin.post("/api/jurnal", json={"nama": "Uji", "profil": e["profil"], "token_template": e["token"]}).json()
+        assert j["punya_template"] is True
+
+        # akun kedua = pengguna biasa: boleh cek, tidak boleh ubah jurnal/pengaturan
+        p = penulis.post("/api/auth/daftar", json={"nama": "Budi Santoso", "email": "budi@gmail.com", "sandi": "rahasia123"}).json()
+        assert p["peran"] == "pengguna"
+        assert penulis.put(f"/api/jurnal/{j['id']}", json={"nama": "x", "profil": e["profil"]}).status_code == 403
+        assert penulis.get("/api/pengaturan").status_code == 403
+        penulis.put("/api/auth/saya", json={"format_nama_komentar": "nama_email"})
+        with open(naskah_docx, "rb") as f:
+            r = penulis.post("/api/cek", files={"naskah": ("n.docx", f)}, data={"jurnal_id": j["id"]}).json()
+        assert r["status"] == "selesai" and r["ringkasan"]["wajib"] > 0
+        assert r["penulis_komentar"] == "Budi Santoso (budi@gmail.com)"
+
+        # komentar Word ditulis atas nama akun yang login
+        berkas = tmp_path / "hasil.docx"
+        berkas.write_bytes(penulis.get(f"/api/cek/{r['id']}/unduh").content)
+        komentar = list(docx.Document(str(berkas)).comments)
+        assert {k.author for k in komentar} == {"Budi Santoso (budi@gmail.com)"}
+        assert any("Diperiksa oleh: Budi Santoso <budi@gmail.com>" in k.text for k in komentar)
+
+        # riwayat terpisah per akun; admin bisa melihat semua
+        assert [x["id"] for x in penulis.get("/api/cek").json()] == [r["id"]]
+        assert admin.get("/api/cek").json() == []
+        assert r["id"] in [x["id"] for x in admin.get("/api/cek?semua=true").json()]
+        assert admin.get(f"/api/cek/{r['id']}").status_code == 200
+
+        assert penulis.post("/api/cek", files={"naskah": ("lama.doc", b"x")}, data={"jurnal_id": j["id"]}).status_code == 400
+        assert admin.put("/api/pengaturan", json={"ai_api_key": "sk-rahasia-123456"}).json()["ai_api_key_samar"] == "sk-…3456"
+        assert "rahasia-123456" not in admin.get("/api/pengaturan").text
+
+        # admin terakhir tidak bisa diturunkan; keluar menghapus sesi
+        assert admin.put(f"/api/pengguna/{a['id']}", json={"peran": "pengguna"}).status_code == 400
+        penulis.post("/api/auth/keluar")
+        assert penulis.get("/api/cek").status_code == 401
+        assert penulis.post("/api/auth/masuk", json={"email": "budi@gmail.com", "sandi": "salah"}).status_code == 401
+        assert penulis.post("/api/auth/masuk", json={"email": "budi@gmail.com", "sandi": "rahasia123"}).status_code == 200
