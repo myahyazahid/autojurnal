@@ -8,7 +8,8 @@ User=autojurnal
 Group=autojurnal
 WorkingDirectory=/opt/autojurnal/backend
 Environment=AUTOJURNAL_DATA=/var/lib/autojurnal
-ExecStart=/opt/autojurnal/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2 --proxy-headers
+# port internal; ganti bila bentrok dengan proyek lain (samakan dengan proxy_pass di Nginx)
+ExecStart=/opt/autojurnal/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010 --workers 2 --proxy-headers
 Restart=always
 RestartSec=3
 # pengamanan dasar

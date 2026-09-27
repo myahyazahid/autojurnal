@@ -108,27 +108,30 @@ cd backend
 .venv/Scripts/python -m app.cli cek naskah.docx --jurnal "Jurnal SIBC"     # pakai profil dari database web
 ```
 
-## Deploy ke VPS (native, tanpa Docker)
+## Deploy ke VPS (native, tanpa Docker — aman untuk VPS yang sudah berisi proyek lain)
 
-Kebutuhan: Ubuntu 22.04/24.04, RAM 1 GB (+ swap, dibuat otomatis) atau 2 GB supaya lega, dan domain yang mengarah ke VPS.
+Kebutuhan: Ubuntu/Debian dengan **Nginx** dan **Python 3.10+**, subdomain yang A-record-nya mengarah ke VPS.
 
 ```bash
-# di VPS (sekali):
-sudo bash deploy/pasang-vps.sh autojurnal.kampus.ac.id https://github.com/USER/autojurnal.git
+# laptop (Git Bash): kemas kode + tampilan web yang sudah di-build, lalu kirim
+cd frontend && npm run build && cd ../..
+tar -czf autojurnal.tar.gz --exclude=autojurnal/backend/.venv --exclude=autojurnal/frontend/node_modules     --exclude=autojurnal/data --exclude=autojurnal/.env --exclude=autojurnal/.git autojurnal
+scp autojurnal.tar.gz USER@IP_VPS:/tmp/
 
-# frontend/dist tidak masuk git. Build di laptop lalu kirim (disarankan untuk VPS 1 GB):
-cd frontend && npm run build
-scp -r dist root@IP_VPS:/opt/autojurnal/frontend/ && ssh root@IP_VPS "chown -R autojurnal: /opt/autojurnal/frontend/dist"
-
-# update berikutnya (git pull + pip + restart; build frontend otomatis bila Node.js terpasang di VPS):
-sudo bash /opt/autojurnal/deploy/perbarui.sh
+# VPS
+sudo tar -xzf /tmp/autojurnal.tar.gz -C /opt
+sudo bash /opt/autojurnal/deploy/pasang-vps.sh autojurnal.redscale.my.id "" 8010
+sudo nano /opt/autojurnal/.env        # isi GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, AUTOJURNAL_ADMIN_EMAILS
+sudo systemctl restart autojurnal
 ```
 
-Skrip pasang membuat `/opt/autojurnal/.env` (BASE_URL https + SECRET_KEY acak). Lengkapi `GOOGLE_CLIENT_ID`,
-`GOOGLE_CLIENT_SECRET`, dan `AUTOJURNAL_ADMIN_EMAILS`, lalu `systemctl restart autojurnal`.
+`pasang-vps.sh` hanya **menambah**: user sistem `autojurnal`, `/opt/autojurnal`, `/var/lib/autojurnal`, layanan systemd
+`autojurnal` di port internal pilihan (bawaan 8010, dicek dulu tidak bentrok), satu site Nginx baru, dan sertifikat HTTPS untuk
+domain itu saja. Site Nginx lain tidak disentuh; bila `nginx -t` gagal, site baru dibatalkan otomatis.
 
-Susunan: Nginx (HTTPS/certbot) → Uvicorn 2 worker (systemd `autojurnal.service`) → SQLite di `/var/lib/autojurnal`.
-Variabel lingkungan: `AUTOJURNAL_DATA` (folder data), `AUTOJURNAL_DB` (URL database, mis. PostgreSQL), `AUTOJURNAL_MAKS_MB` (batas unggah, bawaan 50).
+Susunan: Nginx (HTTPS/certbot) → Uvicorn 2 worker (systemd `autojurnal`) → SQLite di `/var/lib/autojurnal`.
+Log: `journalctl -u autojurnal -f`. Update: kirim ulang tar lalu ekstrak (`.env` & data tidak tertimpa) + `systemctl restart autojurnal`,
+atau bila memakai git: `sudo bash /opt/autojurnal/deploy/perbarui.sh`.
 
 ## Catatan & batasan
 
