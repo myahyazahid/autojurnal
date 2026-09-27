@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 export type Tema = "terang" | "gelap" | "sistem";
 
-const Konteks = createContext<{ tema: Tema; setTema: (t: Tema) => void }>({ tema: "sistem", setTema: () => undefined });
+const Konteks = createContext<{ tema: Tema; setTema: (t: Tema) => void }>({ tema: "terang", setTema: () => undefined });
 
 function baca(): Tema {
   try {
@@ -11,7 +11,7 @@ function baca(): Tema {
   } catch {
     /* penyimpanan diblokir */
   }
-  return "sistem";
+  return "terang";
 }
 
 export function TemaProvider({ children }: { children: ReactNode }) {

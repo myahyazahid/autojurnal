@@ -1,13 +1,21 @@
-import {
-  ArrowLeft, BookOpen, Check, Download, Eye, FileJson, FileText, Pencil, Plus, RefreshCw, Save, Sparkles, Trash2, Upload, WandSparkles,
-} from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, Check, Download, FileJson, FileText, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, relatif, type HasilEkstrak, type JurnalRingkas, type Profil, type Status } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 import EditorProfil, { PetaTemplate } from "../components/EditorProfil";
 import { JudulHalaman, Kartu, Kerangka, Kosong, Lencana, MemuatHalaman, Pesan, Putar, Sakelar, TautanTombol, Tombol, ZonaUnggah } from "../components/ui";
+
+const bayanganMengambang = "shadow-[0_8px_24px_-8px_rgba(34,27,28,0.45)]";
+
+function KembaliKeDaftar() {
+  return (
+    <Link to="/jurnal" className="inline-flex items-center gap-1.5 text-ink-2 hover:text-ink">
+      <ArrowLeft className="h-4 w-4" aria-hidden /> Profil jurnal
+    </Link>
+  );
+}
 
 /* ------------------------------------------------------------------ daftar */
 
@@ -16,27 +24,29 @@ export function DaftarJurnal() {
   const toast = useToast();
   const admin = pengguna?.peran === "admin";
   const [data, setData] = useState<JurnalRingkas[] | null>(null);
+  const [galat, setGalat] = useState("");
   const impor = useRef<HTMLInputElement>(null);
-  const muat = () => api.daftarJurnal().then(setData).catch((e) => toast("galat", "Gagal memuat", e.message));
+  const muat = () => {
+    setGalat("");
+    api.daftarJurnal().then(setData).catch((e) => setGalat(e.message));
+  };
   useEffect(() => {
     muat();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <>
       <JudulHalaman
-        ikon={BookOpen}
-        judul="Profil Jurnal"
-        sub="Setiap jurnal punya profil aturan yang dibaca dari template-nya. Admin bisa menambah & menyunting."
+        judul="Profil jurnal"
+        sub={admin ? "Setiap jurnal punya profil aturan yang dibaca dari template-nya. Anda bisa menambah dan menyunting." : "Aturan setiap jurnal, dibaca dari template-nya."}
         aksi={admin && (
           <>
             <Tombol ikon={FileJson} onClick={() => impor.current?.click()}>Impor .json</Tombol>
-            <Link to="/jurnal/baru"><Tombol varian="utama" ikon={Plus}>Tambah dari template</Tombol></Link>
+            <TautanTombol ke="/jurnal/baru" varian="utama" ikon={Plus}>Tambah dari template</TautanTombol>
           </>
         )}
       />
-      <input ref={impor} type="file" accept=".json" className="hidden" onChange={async (e) => {
+      <input ref={impor} type="file" accept=".json" className="hidden" tabIndex={-1} onChange={async (e) => {
         const f = e.target.files?.[0];
         e.target.value = "";
         if (!f) return;
@@ -48,59 +58,66 @@ export function DaftarJurnal() {
           toast("galat", "Impor gagal", (err as Error).message);
         }
       }} />
-      {data === null ? (
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{[0, 1, 2].map((i) => <Kerangka key={i} className="h-52" />)}</div>
+      {galat ? (
+        <Pesan jenis="galat" judul="Daftar jurnal tidak bisa dimuat" aksi={<Tombol ukuran="kecil" onClick={muat}>Coba lagi</Tombol>}>{galat}</Pesan>
+      ) : data === null ? (
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3" role="status" aria-label="Memuat daftar jurnal">
+          {[0, 1, 2].map((i) => <Kerangka key={i} className="h-52" />)}
+        </div>
       ) : data.length === 0 ? (
         <Kosong
-          ikon={BookOpen}
           judul="Belum ada jurnal"
           sub={admin ? "Unggah template .docx jurnal Anda. Sistem membaca tata letak, format, struktur, dan ketentuan tertulisnya." : "Admin belum menambahkan profil jurnal."}
-          aksi={admin && <Link to="/jurnal/baru"><Tombol varian="utama" ikon={Plus}>Tambah dari template</Tombol></Link>}
+          aksi={admin && <TautanTombol ke="/jurnal/baru" varian="utama" ikon={Plus}>Tambah dari template</TautanTombol>}
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {data.map((j) => (
-            <Kartu key={j.id} className="group relative flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-xl">
-              <div className="bg-merek h-1.5" />
-              <div className="flex flex-1 flex-col p-5">
+            <li key={j.id}>
+              <Kartu className="flex h-full flex-col p-5">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand"><FileText className="h-5 w-5" /></span>
                   <div className="min-w-0 flex-1">
-                    <Link to={`/jurnal/${j.id}`} className="block truncate text-base font-bold text-ink hover:text-brand">{j.nama}</Link>
-                    <div className="truncate text-xs text-ink-3">{j.deskripsi || j.template_nama || "tanpa keterangan"}</div>
+                    <Link to={`/jurnal/${j.id}`} className="block font-serif text-lg leading-snug font-semibold break-words text-ink underline-offset-2 hover:text-brand-tinta hover:underline">
+                      {j.nama}
+                    </Link>
+                    <div className="mt-0.5 truncate text-xs text-ink-2">{j.deskripsi || j.template_nama || "tanpa keterangan"}</div>
                   </div>
-                  <span className="flex shrink-0 gap-1">
+                  <span className="flex shrink-0 flex-wrap justify-end gap-1">
                     {j.punya_scope && <Lencana jenis="info">Scope</Lencana>}
-                    {j.jumlah_naratif > 0 && <Lencana jenis="ai" ikon={Sparkles}>{j.jumlah_naratif}</Lencana>}
+                    {j.jumlah_naratif > 0 && <Lencana jenis="ai">{j.jumlah_naratif} aturan isi</Lencana>}
                   </span>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {j.bagian.map((b, i) => (
-                    <span key={b} className="inline-flex items-center gap-1 rounded-lg bg-panel-3 px-2 py-1 text-[11px] font-semibold text-ink-2">
-                      <span className="text-ink-3">{i + 1}</span> {b}
-                    </span>
-                  ))}
-                </div>
+                {j.bagian.length > 0 && (
+                  <ol className="mt-4 flex flex-wrap gap-1.5">
+                    {j.bagian.map((b, i) => (
+                      <li key={b} className="rounded-md bg-panel-3 px-2 py-1 text-[11px] font-medium text-ink-2">
+                        <span className="text-ink-3">{i + 1}.</span> {b}
+                      </li>
+                    ))}
+                  </ol>
+                )}
                 <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-5">
-                  <Link to={`/jurnal/${j.id}`}>
-                    <Tombol ukuran="kecil" varian={admin ? "utama" : "lembut"} ikon={admin ? Pencil : Eye}>{admin ? "Sunting" : "Lihat aturan"}</Tombol>
-                  </Link>
+                  <TautanTombol ke={`/jurnal/${j.id}`} ukuran="kecil" varian={admin ? "biasa" : "lembut"}>{admin ? "Sunting aturan" : "Lihat aturan"}</TautanTombol>
                   <TautanTombol ukuran="kecil" varian="hantu" ikon={Download} href={`/api/jurnal/${j.id}/ekspor`}>Ekspor</TautanTombol>
                   {j.punya_template && <TautanTombol ukuran="kecil" varian="hantu" ikon={FileText} href={`/api/jurnal/${j.id}/template`}>Template</TautanTombol>}
                   {admin && (
-                    <Tombol ukuran="kecil" varian="hantu" ikon={Trash2} className="ml-auto hover:!text-rose-500" onClick={async () => {
-                      if (!confirm(`Hapus profil “${j.nama}”?`)) return;
-                      await api.hapusJurnal(j.id);
-                      toast("sukses", "Profil dihapus", j.nama);
-                      muat();
-                    }} aria-label="Hapus" />
+                    <Tombol ukuran="kecil" varian="hantu" ikon={Trash2} className="ml-auto hover:!text-brand-tinta" aria-label={`Hapus profil ${j.nama}`} title="Hapus profil" onClick={async () => {
+                      if (!confirm(`Hapus profil "${j.nama}"?`)) return;
+                      try {
+                        await api.hapusJurnal(j.id);
+                        toast("sukses", "Profil dihapus", j.nama);
+                        muat();
+                      } catch (err) {
+                        toast("galat", "Gagal menghapus", (err as Error).message);
+                      }
+                    }} />
                   )}
                 </div>
-                <div className="mt-3 text-[11px] text-ink-3">diperbarui {relatif(j.diubah)}</div>
-              </div>
-            </Kartu>
+                <div className="mt-3 text-xs text-ink-2">diperbarui {relatif(j.diubah)}</div>
+              </Kartu>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </>
   );
@@ -113,30 +130,31 @@ function PanelBaca({ status, onBaca, memuat, labelTombol, adaBerkas = true, chil
 }) {
   const [pakaiAI, setPakaiAI] = useState(false);
   const [panduan, setPanduan] = useState("");
+  const idPanduan = useId();
   return (
     <Kartu className="space-y-4 p-5">
       {children}
-      <div className="rounded-xl border border-line bg-panel-2 p-3.5">
+      <div className="rounded-lg border border-line bg-panel-2 p-3.5">
         <Sakelar
           nyala={pakaiAI && !!status?.ai_aktif}
           ubah={setPakaiAI}
           nonaktif={!status?.ai_aktif}
-          label={<span className="inline-flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Minta AI membaca petunjuk</span>}
+          label="Minta AI membaca petunjuk"
           keterangan={
             status?.ai_aktif
-              ? `Lebih lengkap untuk aturan berbentuk kalimat & menyusun aturan naratif (${status.ai_model}). Template adalah dokumen publik.`
-              : <>AI belum diatur — isi di <Link to="/pengaturan" className="font-semibold text-brand underline">Pengaturan</Link>. Bot tetap membaca format & aturan umum.</>
+              ? `Lebih lengkap untuk aturan berbentuk kalimat dan untuk menyusun aturan naratif (${status.ai_model}). Template adalah dokumen publik.`
+              : <>AI belum diatur. Isi di <Link to="/pengaturan" className="font-semibold text-brand-tinta underline">Pengaturan</Link>. Bot tetap membaca format &amp; aturan umum.</>
           }
         />
       </div>
       {pakaiAI && status?.ai_aktif && (
         <div>
-          <label className="label">Panduan penulis tambahan (opsional)</label>
-          <textarea className="input" rows={4} value={panduan} onChange={(e) => setPanduan(e.target.value)}
+          <label className="label" htmlFor={idPanduan}>Panduan penulis tambahan (opsional)</label>
+          <textarea id={idPanduan} className="input" rows={4} value={panduan} onChange={(e) => setPanduan(e.target.value)}
             placeholder="Tempel teks Author Guidelines dari situs jurnal bila ada ketentuan yang tidak tertulis di template." />
         </div>
       )}
-      <Tombol varian="utama" className="w-full" ikon={WandSparkles} onClick={() => onBaca(pakaiAI && !!status?.ai_aktif, panduan)} memuat={memuat} disabled={!adaBerkas}>
+      <Tombol varian="utama" className="w-full" onClick={() => onBaca(pakaiAI && !!status?.ai_aktif, panduan)} memuat={memuat} disabled={!adaBerkas}>
         {memuat ? (pakaiAI ? "Membaca (bot + AI)…" : "Membaca template…") : labelTombol}
       </Tombol>
     </Kartu>
@@ -145,26 +163,26 @@ function PanelBaca({ status, onBaca, memuat, labelTombol, adaBerkas = true, chil
 
 function InfoAI({ h }: { h: HasilEkstrak | null }) {
   if (!h) return null;
-  if (h.ai.galat) return <Pesan jenis="peringatan" judul="AI gagal membaca template — yang tampil adalah hasil bot">{h.ai.galat}</Pesan>;
-  if (h.ai.dipakai) return <Pesan jenis="sukses" judul={`AI selesai meninjau: ${h.ai.perubahan.length} nilai diperbaiki/dilengkapi.`} />;
+  if (h.ai.galat) return <Pesan jenis="peringatan" judul="AI gagal membaca template. Yang tampil adalah hasil bot.">{h.ai.galat}</Pesan>;
+  if (h.ai.dipakai) return <Pesan jenis="sukses" judul={`AI selesai meninjau: ${h.ai.perubahan.length} nilai diperbaiki atau dilengkapi.`} />;
   return null;
 }
 
 function Stepper({ aktif }: { aktif: number }) {
   const langkah = ["Unggah template", "Tinjau aturan", "Simpan profil"];
   return (
-    <div className="mb-6 flex items-center gap-2 overflow-x-auto">
+    <ol className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-2" aria-label="Langkah">
       {langkah.map((l, i) => (
-        <div key={l} className="flex items-center gap-2">
-          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
-            i < aktif ? "bg-emerald-500 text-white" : i === aktif ? "bg-merek text-white shadow-md shadow-indigo-500/30" : "bg-panel-3 text-ink-3"}`}>
-            {i < aktif ? <Check className="h-3.5 w-3.5" /> : i + 1}
+        <li key={l} className="flex items-center gap-2" aria-current={i === aktif ? "step" : undefined}>
+          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+            i < aktif ? "bg-ok-soft text-ok" : i === aktif ? "bg-ink text-canvas" : "border border-isian text-ink-2"}`}>
+            {i < aktif ? <Check className="h-3.5 w-3.5" aria-label="selesai" /> : i + 1}
           </span>
-          <span className={`text-sm font-semibold whitespace-nowrap ${i === aktif ? "text-ink" : "text-ink-3"}`}>{l}</span>
-          {i < langkah.length - 1 && <span className={`mx-1 h-px w-10 ${i < aktif ? "bg-emerald-500" : "bg-line-2"}`} />}
-        </div>
+          <span className={`text-sm font-semibold whitespace-nowrap ${i === aktif ? "text-ink" : "text-ink-2"}`}>{l}</span>
+          {i < langkah.length - 1 && <span className="mx-1 hidden h-px w-8 bg-line-2 sm:block" aria-hidden />}
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
@@ -215,21 +233,22 @@ export function JurnalBaru() {
   return (
     <>
       <JudulHalaman
-        ikon={Upload}
-        kecil={<Link to="/jurnal" className="inline-flex items-center gap-1 hover:underline"><ArrowLeft className="h-3 w-3" /> Profil jurnal</Link>}
-        judul="Tambah Jurnal dari Template"
-        sub="Sistem membaca tata letak & format dari pengaturan Word di template, dan ketentuan tertulis dari teks petunjuknya."
+        kecil={<KembaliKeDaftar />}
+        judul="Tambah jurnal dari template"
+        sub="Tata letak dan format dibaca dari pengaturan Word di template. Ketentuan tertulis dibaca dari teks petunjuknya."
         aksi={hasil && <Tombol varian="utama" ikon={Save} onClick={simpan} memuat={menyimpan} disabled={!nama.trim()}>Simpan profil</Tombol>}
       />
       <Stepper aktif={hasil ? 1 : 0} />
-      <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+      <div className="grid items-start gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4">
           <PanelBaca status={status} onBaca={baca} memuat={memuat} labelTombol={hasil ? "Baca ulang" : "Baca template"} adaBerkas={!!berkas}>
             {berkas ? (
-              <div className="flex items-center gap-3 rounded-xl border border-line bg-panel-2 px-3.5 py-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand"><FileText className="h-4 w-4" /></span>
+              <div className="flex items-center gap-3 rounded-lg border border-line bg-panel-2 px-3.5 py-2.5">
+                <FileText className="h-4 w-4 shrink-0 text-ink-2" aria-hidden />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">{berkas.name}</span>
-                <button type="button" className="text-xs font-semibold text-brand hover:underline" onClick={() => { setBerkas(null); setHasil(null); }}>ganti</button>
+                <button type="button" className="ketuk text-xs font-semibold text-brand-tinta underline-offset-2 hover:underline" onClick={() => { setBerkas(null); setHasil(null); }}>
+                  Ganti berkas
+                </button>
               </div>
             ) : (
               <ZonaUnggah terima=".docx,.dotx" ringkas label="Unggah template jurnal (.docx)" sub="Template resmi dari situs jurnal" pilih={(f) => setBerkas(f[0])} />
@@ -243,14 +262,14 @@ export function JurnalBaru() {
             <>
               <EditorProfil nama={nama} setNama={setNama} deskripsi={deskripsi} setDeskripsi={setDeskripsi} profil={profil} setProfil={setProfil} />
               <div className="sticky bottom-4 z-10 flex justify-end">
-                <Tombol varian="utama" ukuran="besar" ikon={Save} onClick={simpan} memuat={menyimpan} disabled={!nama.trim()}>Simpan profil</Tombol>
+                <Tombol varian="utama" ukuran="besar" ikon={Save} className={bayanganMengambang} onClick={simpan} memuat={menyimpan} disabled={!nama.trim()}>Simpan profil</Tombol>
               </div>
             </>
           ) : memuat ? (
-            <Kartu className="flex items-center gap-3 p-8 text-sm text-ink-2"><Putar /> Membaca template…</Kartu>
+            <Kartu className="flex items-center gap-3 p-8 text-sm text-ink-2" ><Putar /> <span role="status">Membaca template…</span></Kartu>
           ) : (
-            <Kosong ikon={WandSparkles} judul="Aturan yang terbaca akan tampil di sini"
-              sub="Margin, font, struktur bagian, jumlah kata abstrak, gaya sitasi, minimal referensi — semua diubah menjadi aturan yang bisa Anda sunting." />
+            <Kosong judul="Aturan yang terbaca akan tampil di sini"
+              sub="Margin, font, struktur bagian, jumlah kata abstrak, gaya sitasi, dan minimal referensi diubah menjadi aturan yang bisa Anda sunting." />
           )}
         </div>
       </div>
@@ -313,13 +332,18 @@ export function EditJurnal() {
     }
   }
 
-  if (galat) return <Pesan jenis="galat">{galat}</Pesan>;
-  if (!data) return <MemuatHalaman />;
+  if (galat)
+    return (
+      <>
+        <div className="mb-5 text-sm font-semibold"><KembaliKeDaftar /></div>
+        <Pesan jenis="galat" judul="Profil jurnal tidak bisa dimuat">{galat}</Pesan>
+      </>
+    );
+  if (!data) return <MemuatHalaman teks="Memuat profil jurnal…" />;
   return (
     <>
       <JudulHalaman
-        ikon={admin ? Pencil : Eye}
-        kecil={<Link to="/jurnal" className="inline-flex items-center gap-1 hover:underline"><ArrowLeft className="h-3 w-3" /> Profil jurnal</Link>}
+        kecil={<KembaliKeDaftar />}
         judul={data.nama}
         sub={admin ? "Sunting aturan lalu simpan. Perubahan berlaku untuk pengecekan berikutnya." : "Aturan yang dipakai untuk memeriksa naskah di jurnal ini."}
         aksi={
@@ -329,14 +353,14 @@ export function EditJurnal() {
           </>
         }
       />
-      <div className={admin ? "grid gap-6 xl:grid-cols-[340px_1fr]" : ""}>
+      <div className={admin ? "grid items-start gap-6 xl:grid-cols-[340px_minmax(0,1fr)]" : ""}>
         {admin && (
           <div className="space-y-4">
             {data.punya_template ? (
               <PanelBaca status={status} onBaca={bacaUlang} memuat={memuat} labelTombol="Baca ulang template">
                 <div className="flex items-center gap-2 text-sm text-ink-2">
-                  <RefreshCw className="h-4 w-4 text-brand" />
-                  <a className="truncate font-semibold text-brand hover:underline" href={`/api/jurnal/${jid}/template`}>{data.template_nama || "template tersimpan"}</a>
+                  <RefreshCw className="h-4 w-4 shrink-0 text-ink-2" aria-hidden />
+                  <a className="truncate font-semibold text-brand-tinta underline-offset-2 hover:underline" href={`/api/jurnal/${jid}/template`}>{data.template_nama || "template tersimpan"}</a>
                 </div>
               </PanelBaca>
             ) : (
@@ -350,7 +374,7 @@ export function EditJurnal() {
           <EditorProfil nama={nama} setNama={setNama} deskripsi={deskripsi} setDeskripsi={setDeskripsi} profil={profil} setProfil={setProfil} hanyaBaca={!admin} />
           {admin && (
             <div className="sticky bottom-4 z-10 flex justify-end">
-              <Tombol varian="utama" ukuran="besar" ikon={Save} onClick={simpan} memuat={menyimpan}>Simpan perubahan</Tombol>
+              <Tombol varian="utama" ukuran="besar" ikon={Save} className={bayanganMengambang} onClick={simpan} memuat={menyimpan}>Simpan perubahan</Tombol>
             </div>
           )}
         </div>

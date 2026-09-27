@@ -1,54 +1,85 @@
 @import "tailwindcss";
 @import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/source-serif-4";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Token semantik: satu kelas (bg-panel, text-ink, border-line) otomatis benar di mode terang & gelap. */
+/*
+ * Arah visual: kertas putih + tinta merah editor.
+ * - Merah lembut = tinta koreksi: aksi utama, temuan wajib, penanda. Sisanya netral hangat.
+ * - Serif (Source Serif 4) = suara naskah: judul halaman & kutipan teks naskah. Sans (Plus Jakarta Sans) = antarmuka.
+ * Semua pasangan warna teks sudah dicek WCAG AA (lihat catatan kontras di tiap token).
+ */
 @theme inline {
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4 Variable", Georgia, Cambria, "Times New Roman", serif;
   --color-canvas: var(--c-canvas);
   --color-panel: var(--c-panel);
   --color-panel-2: var(--c-panel-2);
   --color-panel-3: var(--c-panel-3);
   --color-line: var(--c-line);
   --color-line-2: var(--c-line-2);
+  --color-isian: var(--c-isian);
   --color-ink: var(--c-ink);
   --color-ink-2: var(--c-ink-2);
   --color-ink-3: var(--c-ink-3);
   --color-brand: var(--c-brand);
-  --color-brand-2: var(--c-brand-2);
+  --color-brand-kuat: var(--c-brand-kuat);
+  --color-brand-kuat-2: var(--c-brand-kuat-2);
+  --color-brand-tinta: var(--c-brand-tinta);
   --color-brand-soft: var(--c-brand-soft);
+  --color-brand-garis: var(--c-brand-garis);
+  --color-ok: var(--c-ok);
+  --color-ok-soft: var(--c-ok-soft);
+  --color-waspada: var(--c-waspada);
+  --color-waspada-soft: var(--c-waspada-soft);
 }
 
 :root {
-  --c-canvas: #f5f6fb;
+  --c-canvas: #faf7f6;
   --c-panel: #ffffff;
-  --c-panel-2: #f8f9fc;
-  --c-panel-3: #eef0f7;
-  --c-line: #e4e7f0;
-  --c-line-2: #d3d8e6;
-  --c-ink: #10132a;
-  --c-ink-2: #4a5170;
-  --c-ink-3: #8a90a8;
-  --c-brand: #5b4cf0;
-  --c-brand-2: #7c3aed;
-  --c-brand-soft: #eeebff;
+  --c-panel-2: #f9f5f4;
+  --c-panel-3: #f3edec;
+  --c-line: #ece4e3;
+  --c-line-2: #e0d6d5;
+  --c-isian: #968a8c; /* batas input: 3.33:1 di putih */
+  --c-ink: #221b1c;
+  --c-ink-2: #5b5052; /* 7.7:1 di putih */
+  --c-ink-3: #736769; /* 5.4:1 di putih, 4.8:1 di panel-3 */
+  --c-brand: #e06a6a; /* merah lembut: hanya non-teks / teks besar */
+  --c-brand-kuat: #c4444a; /* isi tombol, teks putih 4.9:1 */
+  --c-brand-kuat-2: #b83a40;
+  --c-brand-tinta: #a8323a; /* teks merah: 6.6:1 di putih, 5.9:1 di brand-soft */
+  --c-brand-soft: #fceeee;
+  --c-brand-garis: #f2cfcf;
+  --c-ok: #1f7a4d;
+  --c-ok-soft: #e8f5ee;
+  --c-waspada: #8a5a00;
+  --c-waspada-soft: #fdf3dc;
   color-scheme: light;
 }
 
 .dark {
-  --c-canvas: #090b16;
-  --c-panel: #111427;
-  --c-panel-2: #151931;
-  --c-panel-3: #1c2140;
-  --c-line: #232846;
-  --c-line-2: #30365a;
-  --c-ink: #eef0ff;
-  --c-ink-2: #aab0cf;
-  --c-ink-3: #6f7596;
-  --c-brand: #8b7cff;
-  --c-brand-2: #a78bfa;
-  --c-brand-soft: #1f1b4a;
+  --c-canvas: #151112;
+  --c-panel: #1d1819;
+  --c-panel-2: #231d1e;
+  --c-panel-3: #2c2526;
+  --c-line: #362e2f;
+  --c-line-2: #463c3d;
+  --c-isian: #7d7072; /* 3.7:1 di panel */
+  --c-ink: #f3ecec;
+  --c-ink-2: #cdbfc0;
+  --c-ink-3: #a89a9c; /* 5.5:1 di panel-3 */
+  --c-brand: #ee8080;
+  --c-brand-kuat: #c4444a;
+  --c-brand-kuat-2: #b83a40; /* hover tetap lebih gelap agar teks putih 5.6:1 */
+  --c-brand-tinta: #f4a3a3; /* 8.9:1 di panel */
+  --c-brand-soft: #3a1f21;
+  --c-brand-garis: #5a2e31;
+  --c-ok: #7fd1a5;
+  --c-ok-soft: #173024;
+  --c-waspada: #f0c46a;
+  --c-waspada-soft: #33280f;
   color-scheme: dark;
 }
 
@@ -60,99 +91,78 @@ body,
 
 body {
   @apply bg-canvas text-ink antialiased;
-  font-feature-settings: "ss01", "cv11";
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--c-brand) 30%, transparent);
+  background: color-mix(in oklab, var(--c-brand) 28%, transparent);
 }
 
-/* ---- komponen dasar (di layer components agar utilitas seperti pl-10 tetap bisa menimpa) ---- */
+/* Ikon dipakai hanya untuk aksi (unduh, hapus, cari). Garis 1.75 menyamai ketebalan medium Plus Jakarta Sans. */
+svg.lucide {
+  stroke-width: 1.75;
+}
+
+/* Satu gaya fokus untuk semua kontrol: garis merah kuat, 4.9:1 di terang dan 3.6:1 di gelap. */
+:focus-visible {
+  outline: 2px solid var(--c-brand-kuat);
+  outline-offset: 2px;
+}
+
 @layer components {
   .input {
-    @apply w-full rounded-xl border border-line bg-panel px-3.5 py-2.5 text-sm text-ink shadow-xs outline-none transition
-      placeholder:text-ink-3 hover:border-line-2 focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply w-full rounded-lg border border-isian bg-panel px-3 py-2.5 text-sm text-ink transition-colors
+      placeholder:text-ink-3 hover:border-ink-3 focus:border-brand-kuat disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .input:focus-visible {
+    outline-offset: 0;
   }
 
   .input-sm {
-    @apply w-full rounded-lg border border-line bg-panel px-2 py-1.5 text-xs text-ink outline-none transition
-      hover:border-line-2 focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:opacity-60;
+    @apply w-full rounded-md border border-isian bg-panel px-2 py-1.5 text-xs text-ink transition-colors
+      hover:border-ink-3 focus:border-brand-kuat disabled:opacity-60;
+  }
+  .input-sm:focus-visible {
+    outline-offset: 0;
   }
 
   .label {
     @apply mb-1.5 block text-[13px] font-semibold text-ink-2;
   }
 
-  .bg-merek {
-    background-image: linear-gradient(120deg, #4f46e5 0%, #7c3aed 45%, #c026d3 100%);
-  }
-
-  .teks-merek {
-    background-image: linear-gradient(100deg, #6366f1, #a855f7 50%, #ec4899);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
+  /* Kartu datar: batas tipis saja. Bayangan disimpan untuk lapisan yang benar-benar melayang (menu, toast). */
   .kartu {
-    @apply rounded-2xl border border-line bg-panel shadow-[0_1px_2px_rgba(16,19,42,0.04),0_8px_24px_-12px_rgba(16,19,42,0.12)]
-      dark:shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_12px_32px_-16px_rgba(0,0,0,0.6)];
+    @apply rounded-xl border border-line bg-panel;
   }
 
-  .kaca {
-    @apply border border-white/15 bg-white/10 backdrop-blur-md;
+  .melayang {
+    @apply rounded-xl border border-line bg-panel shadow-[0_12px_32px_-12px_rgba(34,27,28,0.25)] dark:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.7)];
   }
 
-  .grid-titik {
-    background-image: radial-gradient(color-mix(in oklab, var(--c-ink) 12%, transparent) 1px, transparent 1px);
-    background-size: 18px 18px;
+  /* Garis bergelombang merah = tanda koreksi editor. Motif ini hanya dipakai pada frasa kunci. */
+  .coret-merah {
+    text-decoration-line: underline;
+    text-decoration-style: wavy;
+    text-decoration-color: var(--c-brand);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+    text-decoration-skip-ink: none;
   }
 }
 
-/* ---- animasi ---------------------------------------------------------------- */
+/* Target sentuh minimal 44px di perangkat layar sentuh, tanpa membesarkan tampilan desktop. */
+@media (pointer: coarse) {
+  .ketuk {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
 
-@keyframes muncul {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes melayang {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(18px, -22px) scale(1.06);
-  }
-}
+/* ---- gerak: hanya penanda muat. MOTION 1 = keadaan hover/fokus, tanpa animasi hiasan ---- */
+
 @keyframes kilau {
   to {
     background-position: -200% 0;
   }
-}
-@keyframes naik {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.animasi-muncul {
-  animation: muncul 0.35s ease-out both;
-}
-.animasi-melayang {
-  animation: melayang 14s ease-in-out infinite;
-}
-.animasi-naik {
-  animation: naik 3.5s ease-in-out infinite;
 }
 .kilau {
   background: linear-gradient(90deg, var(--c-panel-3) 25%, var(--c-panel-2) 50%, var(--c-panel-3) 75%);
@@ -161,10 +171,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animasi-muncul,
-  .animasi-melayang,
-  .animasi-naik,
-  .kilau {
+  .kilau,
+  .animate-spin {
     animation: none;
   }
 }

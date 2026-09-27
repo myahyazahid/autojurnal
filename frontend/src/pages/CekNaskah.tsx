@@ -1,10 +1,10 @@
-import { BadgeCheck, BookOpen, CalendarDays, CircleCheck, CircleX, Clock, FileText, FolderDown, Gauge, Rocket, ScanSearch, Sparkles, X, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CircleCheck, CircleX, FileText, FolderDown, Plus, X } from "lucide-react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { api, type Cek, type JurnalRingkas, type StatistikDasbor, type Status } from "../lib/api";
 import { namaDepan, useAuth } from "../lib/auth";
 import HasilCek from "../components/HasilCek";
-import { Kartu, Kerangka, Kosong, Lencana, LencanaScope, Pesan, Putar, Sakelar, TautanTombol, Tombol, ZonaUnggah } from "../components/ui";
+import { Kartu, Kerangka, Kosong, Lencana, Pesan, Putar, Sakelar, TautanTombol, Tombol, ZonaUnggah } from "../components/ui";
 
 interface Antrian {
   berkas: File;
@@ -18,43 +18,61 @@ function sapaan(): string {
   return j < 11 ? "Selamat pagi" : j < 15 ? "Selamat siang" : j < 19 ? "Selamat sore" : "Selamat malam";
 }
 
-function Chip({ ikon: Ikon, nilai, label }: { ikon: LucideIcon; nilai: string | number; label: string }) {
+/** Angka dari /api/statistik, ditulis sebaris agar tidak bersaing dengan area unggah. */
+function StatistikRingkas({ stat, galat }: { stat: StatistikDasbor | null; galat: boolean }) {
+  if (galat) return <p className="text-sm text-ink-2">Statistik pengecekan belum bisa dimuat.</p>;
+  if (!stat) return <Kerangka className="h-11 w-72" />;
+  const butir: [string, ReactNode][] = [
+    ["total pengecekan", stat.total_cek],
+    ["minggu ini", stat.cek_minggu_ini],
+    ["rata-rata masalah", stat.rata_masalah?.toLocaleString("id-ID") ?? "belum ada"],
+    ["siap dikirim", stat.siap_kirim],
+  ];
   return (
-    <div className="kaca flex items-center gap-3 rounded-2xl px-4 py-3">
-      <Ikon className="h-5 w-5 text-white/80" />
-      <div>
-        <div className="text-lg leading-none font-extrabold text-white tabular-nums">{nilai}</div>
-        <div className="mt-1 text-[11px] font-medium text-white/70">{label}</div>
-      </div>
-    </div>
+    <dl className="flex flex-wrap gap-x-6 gap-y-3">
+      {butir.map(([label, nilai]) => (
+        <div key={label}>
+          <dt className="text-xs text-ink-2">{label}</dt>
+          <dd className="font-serif text-xl leading-tight font-semibold text-ink tabular-nums">{nilai}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
-function Langkah({ n, judul, children }: { n: number; judul: string; children: React.ReactNode }) {
+function Langkah({ n, judul, id, children }: { n: number; judul: string; id?: string; children: ReactNode }) {
   return (
-    <div>
-      <div className="mb-2.5 flex items-center gap-2.5">
-        <span className="bg-merek flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold text-white">{n}</span>
-        <span className="text-sm font-bold text-ink">{judul}</span>
+    <li className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2">
+      <span className="font-serif text-lg leading-6 font-semibold text-ink-3" aria-hidden>{n}</span>
+      <div className="min-w-0">
+        {id ? (
+          <label htmlFor={id} className="mb-2.5 block text-sm leading-6 font-semibold text-ink">{judul}</label>
+        ) : (
+          <h2 className="mb-2.5 text-sm leading-6 font-semibold text-ink">{judul}</h2>
+        )}
+        {children}
       </div>
-      {children}
-    </div>
+    </li>
   );
 }
 
 export default function CekNaskah() {
   const { pengguna } = useAuth();
+  const admin = pengguna?.peran === "admin";
   const [jurnal, setJurnal] = useState<JurnalRingkas[] | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [stat, setStat] = useState<StatistikDasbor | null>(null);
+  const [galatStat, setGalatStat] = useState(false);
   const [pilihan, setPilihan] = useState<number | "">("");
   const [pakaiAI, setPakaiAI] = useState(false);
   const [antrian, setAntrian] = useState<Antrian[]>([]);
   const [jalan, setJalan] = useState(false);
   const [dibuka, setDibuka] = useState(0);
   const [galat, setGalat] = useState("");
+  const idJurnal = useId();
 
-  useEffect(() => {
+  const muatJurnal = () => {
+    setGalat("");
     api.daftarJurnal().then((d) => {
       setJurnal(d);
       let simpan = NaN;
@@ -65,8 +83,13 @@ export default function CekNaskah() {
       }
       setPilihan(d.find((j) => j.id === simpan)?.id ?? d[0]?.id ?? "");
     }).catch((e) => setGalat(e.message));
+  };
+  const muatStat = () => api.statistik().then((s) => { setStat(s); setGalatStat(false); }).catch(() => setGalatStat(true));
+
+  useEffect(() => {
+    muatJurnal();
     api.status().then(setStatus).catch(() => undefined);
-    api.statistik().then(setStat).catch(() => undefined);
+    muatStat();
   }, []);
 
   const jurnalDipilih = jurnal?.find((j) => j.id === pilihan);
@@ -94,7 +117,12 @@ export default function CekNaskah() {
       }
     }
     setJalan(false);
-    api.statistik().then(setStat).catch(() => undefined);
+    muatStat();
+  }
+
+  function hapus(i: number) {
+    setAntrian((q) => q.filter((_, j) => j !== i));
+    setDibuka((d) => (d > i ? d - 1 : d === i ? 0 : d));
   }
 
   const selesai = antrian.filter((a) => a.hasil?.status === "selesai");
@@ -103,176 +131,173 @@ export default function CekNaskah() {
 
   return (
     <>
-      {/* ---------------- hero ---------------- */}
-      <div className="bg-merek relative mb-7 overflow-hidden rounded-3xl p-6 shadow-xl shadow-indigo-500/20 sm:p-8">
-        <div className="animasi-melayang absolute -top-24 -right-16 h-72 w-72 rounded-full bg-fuchsia-400/40 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.12)_1px,transparent_1px)] [background-size:20px_20px] [mask-image:linear-gradient(to_left,black,transparent)]" />
-        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <div className="text-sm font-medium text-white/75">{sapaan()},</div>
-            <h1 className="mt-0.5 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{namaDepan(pengguna)} 👋</h1>
-            <p className="mt-2 max-w-lg text-sm text-white/80">
-              Unggah naskah .docx, pilih jurnal tujuan, dan dapatkan salinan berkomentar Word di setiap bagian yang belum sesuai template.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {stat ? (
-              <>
-                <Chip ikon={ScanSearch} nilai={stat.total_cek} label="total pengecekan" />
-                <Chip ikon={CalendarDays} nilai={stat.cek_minggu_ini} label="minggu ini" />
-                <Chip ikon={Gauge} nilai={stat.rata_masalah?.toLocaleString("id-ID") ?? "–"} label="rata-rata masalah" />
-                <Chip ikon={BadgeCheck} nilai={stat.siap_kirim} label="siap dikirim" />
-              </>
-            ) : (
-              [0, 1, 2, 3].map((i) => <div key={i} className="kaca h-[62px] w-36 animate-pulse rounded-2xl" />)
-            )}
-          </div>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-x-10 gap-y-5 sm:mb-8">
+        <div className="min-w-0">
+          <p className="text-sm text-ink-2">{sapaan()}, {namaDepan(pengguna)}</p>
+          <h1 className="mt-1 font-serif text-[26px] leading-tight font-semibold tracking-tight sm:text-[32px]">Cek naskah</h1>
+          <p className="mt-1.5 max-w-xl text-sm text-ink-2">
+            Pilih jurnal tujuan, unggah naskah .docx, lalu unduh salinan yang berisi komentar Word di setiap bagian yang belum sesuai template.
+          </p>
         </div>
+        <StatistikRingkas stat={stat} galat={galatStat} />
       </div>
 
-      {galat && <div className="mb-4"><Pesan jenis="galat">{galat}</Pesan></div>}
+      {galat && (
+        <div className="mb-4">
+          <Pesan jenis="galat" judul="Daftar jurnal tidak bisa dimuat" aksi={<Tombol ukuran="kecil" onClick={muatJurnal}>Coba lagi</Tombol>}>{galat}</Pesan>
+        </div>
+      )}
 
       {jurnal && jurnal.length === 0 ? (
         <Kosong
-          ikon={BookOpen}
           judul="Belum ada profil aturan jurnal"
-          sub={pengguna?.peran === "admin" ? "Tambahkan jurnal dengan mengunggah template-nya. Sistem akan membaca aturannya secara otomatis." : "Minta admin menambahkan profil jurnal terlebih dahulu."}
-          aksi={pengguna?.peran === "admin" && <Link to="/jurnal/baru"><Tombol varian="utama" ikon={Rocket}>Tambah jurnal dari template</Tombol></Link>}
+          sub={admin ? "Tambahkan jurnal dengan mengunggah template-nya. Sistem membaca aturannya dari berkas itu." : "Minta admin menambahkan profil jurnal terlebih dahulu."}
+          aksi={admin && <TautanTombol ke="/jurnal/baru" varian="utama" ikon={Plus}>Tambah jurnal dari template</TautanTombol>}
         />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+        <div className="grid items-start gap-6 xl:grid-cols-[400px_minmax(0,1fr)]">
           <div className="space-y-4">
-            <Kartu className="space-y-6 p-5">
-              <Langkah n={1} judul="Pilih jurnal tujuan">
-                {jurnal === null ? (
-                  <Kerangka className="h-11" />
-                ) : (
-                  <select className="input" value={pilihan} onChange={(e) => setPilihan(Number(e.target.value))}>
-                    {jurnal.map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
-                  </select>
-                )}
-                {jurnalDipilih && jurnalDipilih.bagian.length > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-1">
-                    {jurnalDipilih.bagian.map((b) => <Lencana key={b}>{b}</Lencana>)}
-                  </div>
-                )}
-              </Langkah>
-
-              <Langkah n={2} judul="Unggah naskah">
-                <ZonaUnggah
-                  ganda
-                  ringkas={antrian.length > 0}
-                  label={antrian.length ? "Tambah naskah lain" : "Seret naskah .docx ke sini"}
-                  sub="atau klik untuk memilih · bisa banyak sekaligus"
-                  pilih={(f) => setAntrian((q) => [...q, ...f.map((berkas) => ({ berkas, status: "menunggu" as const }))])}
-                />
-              </Langkah>
-
-              <Langkah n={3} judul="Opsi pemeriksaan">
-                <div className="rounded-xl border border-line bg-panel-2 p-3.5">
-                  <Sakelar
-                    nyala={pakaiAI && aiBisa}
-                    ubah={setPakaiAI}
-                    nonaktif={!aiBisa}
-                    label={<span className="inline-flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Cek substansi & scope dengan AI</span>}
-                    keterangan={
-                      !status?.ai_aktif
-                        ? pengguna?.peran === "admin"
-                          ? <>AI belum diatur — isi di <Link className="font-semibold text-brand underline" to="/pengaturan">Pengaturan</Link>.</>
-                          : "AI belum diaktifkan oleh admin."
-                        : !aiBisa
-                          ? "Profil ini belum punya aturan naratif maupun Focus & Scope."
-                          : [jurnalDipilih?.punya_scope && "kesesuaian scope (terima/tolak)",
-                             jurnalDipilih?.jumlah_naratif ? `${jurnalDipilih.jumlah_naratif} aturan isi` : ""]
-                              .filter(Boolean).join(" + ") + ` dinilai ${status.ai_model}.`
-                    }
-                  />
-                  {pakaiAI && aiBisa && (
-                    <p className="mt-2.5 rounded-lg bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">
-                      Isi naskah akan dikirim ke layanan AI. Pastikan sesuai kebijakan kerahasiaan jurnal.
+            <Kartu className="p-5">
+              <ol className="space-y-6">
+                <Langkah n={1} judul="Pilih jurnal tujuan" id={idJurnal}>
+                  {jurnal === null && !galat ? (
+                    <Kerangka className="h-11" />
+                  ) : (
+                    <select id={idJurnal} className="input" value={pilihan} disabled={!jurnal} onChange={(e) => setPilihan(Number(e.target.value))}>
+                      {(jurnal ?? []).map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
+                    </select>
+                  )}
+                  {jurnalDipilih && jurnalDipilih.bagian.length > 0 && (
+                    <p className="mt-2 text-xs leading-relaxed text-ink-2">
+                      <span className="font-semibold text-ink">Struktur: </span>
+                      {jurnalDipilih.bagian.join(" · ")}
                     </p>
                   )}
-                </div>
-              </Langkah>
+                </Langkah>
 
-              <Tombol varian="utama" ukuran="besar" className="w-full" ikon={ScanSearch} onClick={mulai} memuat={jalan} disabled={!menunggu || !pilihan}>
-                {jalan ? "Memeriksa…" : menunggu ? `Periksa ${menunggu} naskah` : "Pilih naskah dulu"}
+                <Langkah n={2} judul="Unggah naskah">
+                  <ZonaUnggah
+                    ganda
+                    ringkas={antrian.length > 0}
+                    label={antrian.length ? "Tambah naskah lain" : "Seret naskah .docx ke sini"}
+                    sub="atau klik untuk memilih, bisa beberapa sekaligus"
+                    pilih={(f) => setAntrian((q) => [...q, ...f.map((berkas) => ({ berkas, status: "menunggu" as const }))])}
+                  />
+                </Langkah>
+
+                <Langkah n={3} judul="Opsi pemeriksaan">
+                  <div className="rounded-lg border border-line bg-panel-2 p-3.5">
+                    <Sakelar
+                      nyala={pakaiAI && aiBisa}
+                      ubah={setPakaiAI}
+                      nonaktif={!aiBisa}
+                      label="Nilai substansi & scope dengan AI"
+                      keterangan={
+                        !status?.ai_aktif
+                          ? admin
+                            ? <>AI belum diatur. Isi di <Link className="font-semibold text-brand-tinta underline" to="/pengaturan">Pengaturan</Link>.</>
+                            : "AI belum diaktifkan oleh admin."
+                          : !aiBisa
+                            ? "Profil ini belum punya aturan naratif maupun Focus & Scope."
+                            : [jurnalDipilih?.punya_scope && "kesesuaian scope (terima/tolak)",
+                               jurnalDipilih?.jumlah_naratif ? `${jurnalDipilih.jumlah_naratif} aturan isi` : ""]
+                                .filter(Boolean).join(" + ") + `, dinilai ${status.ai_model}.`
+                      }
+                    />
+                    {pakaiAI && aiBisa && (
+                      <p className="mt-3 rounded-md bg-waspada-soft px-2.5 py-2 text-xs text-waspada">
+                        Isi naskah akan dikirim ke layanan AI. Pastikan sesuai kebijakan kerahasiaan jurnal.
+                      </p>
+                    )}
+                  </div>
+                </Langkah>
+              </ol>
+
+              <Tombol varian="utama" ukuran="besar" className="mt-6 w-full" onClick={mulai} memuat={jalan} disabled={!menunggu || !pilihan}>
+                {jalan ? "Memeriksa…" : menunggu ? `Periksa ${menunggu} naskah` : "Unggah naskah dulu"}
               </Tombol>
             </Kartu>
 
             {antrian.length > 0 && (
               <Kartu className="overflow-hidden">
-                <div className="flex items-center justify-between border-b border-line px-4 py-3">
-                  <span className="text-sm font-bold">Antrean</span>
+                <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+                  <h2 className="text-sm font-semibold">Antrean <span className="font-normal text-ink-2">({antrian.length})</span></h2>
                   {selesai.length > 1 && (
                     <TautanTombol href={api.urlZip(selesai.map((a) => a.hasil!.id))} ukuran="kecil" varian="lembut" ikon={FolderDown}>
                       Unduh semua (.zip)
                     </TautanTombol>
                   )}
                 </div>
-                <div className="divide-y divide-line">
+                <ul className="divide-y divide-line">
                   {antrian.map((a, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setDibuka(i)}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition ${dibuka === i ? "bg-brand-soft/60" : "hover:bg-panel-2"}`}
-                    >
-                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${a.status === "gagal" ? "bg-rose-500/10 text-rose-500" : "bg-brand-soft text-brand"}`}>
-                        {a.status === "proses" ? <Putar /> : a.status === "gagal" ? <CircleX className="h-4 w-4" /> : a.status === "selesai" ? <CircleCheck className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold text-ink">{a.berkas.name}</span>
-                        <span className="text-[11px] text-ink-3">
-                          {a.status === "menunggu" && "menunggu"}
-                          {a.status === "proses" && "sedang diperiksa…"}
-                          {a.status === "gagal" && "gagal"}
-                          {a.status === "selesai" && a.hasil?.ringkasan && `${a.hasil.ringkasan.masalah} masalah · ${a.hasil.ringkasan.wajib} wajib`}
+                    <li key={i} className={`flex items-center ${dibuka === i ? "bg-panel-2" : ""}`}>
+                      <button
+                        type="button"
+                        onClick={() => setDibuka(i)}
+                        aria-current={dibuka === i ? "true" : undefined}
+                        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-panel-2"
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden>
+                          {a.status === "proses" ? <Putar /> : a.status === "gagal" ? <CircleX className="h-5 w-5 text-brand-tinta" /> : a.status === "selesai" ? <CircleCheck className="h-5 w-5 text-ok" /> : <FileText className="h-5 w-5 text-ink-3" />}
                         </span>
-                      </span>
-                      <LencanaScope keputusan={a.hasil?.scope?.keputusan} />
-                      {a.status === "selesai" && a.hasil?.ringkasan && (
-                        <Lencana jenis={a.hasil.ringkasan.wajib === 0 ? "sukses" : a.hasil.ringkasan.wajib <= 5 ? "saran" : "wajib"}>
-                          {a.hasil.ringkasan.wajib === 0 ? "siap" : a.hasil.ringkasan.wajib <= 5 ? "minor" : "revisi"}
-                        </Lencana>
-                      )}
+                        <span className="min-w-0 flex-1">
+                          <span className={`block truncate ${dibuka === i ? "font-semibold" : "font-medium"} text-ink`}>{a.berkas.name}</span>
+                          <span className="text-xs text-ink-2">
+                            {a.status === "menunggu" && "menunggu"}
+                            {a.status === "proses" && "sedang diperiksa…"}
+                            {a.status === "gagal" && "gagal diperiksa"}
+                            {a.status === "selesai" && a.hasil?.ringkasan && `${a.hasil.ringkasan.masalah} masalah, ${a.hasil.ringkasan.wajib} wajib`}
+                          </span>
+                        </span>
+                        {a.status === "selesai" && a.hasil?.ringkasan && (
+                          <Lencana jenis={a.hasil.ringkasan.wajib === 0 ? "sukses" : a.hasil.ringkasan.wajib <= 5 ? "saran" : "wajib"}>
+                            {a.hasil.ringkasan.wajib === 0 ? "siap" : a.hasil.ringkasan.wajib <= 5 ? "minor" : "revisi"}
+                          </Lencana>
+                        )}
+                      </button>
                       {!jalan && a.status !== "proses" && (
-                        <span role="button" aria-label="Hapus dari antrean" className="rounded p-1 text-ink-3 hover:bg-panel-3 hover:text-rose-500"
-                          onClick={(e) => { e.stopPropagation(); setAntrian((q) => q.filter((_, j) => j !== i)); }}>
-                          <X className="h-3.5 w-3.5" />
-                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Hapus ${a.berkas.name} dari antrean`}
+                          onClick={() => hapus(i)}
+                          className="ketuk mr-2 inline-flex shrink-0 items-center justify-center rounded-md p-2 text-ink-2 hover:bg-panel-3 hover:text-brand-tinta"
+                        >
+                          <X className="h-4 w-4" aria-hidden />
+                        </button>
                       )}
-                    </button>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </Kartu>
             )}
           </div>
 
-          <div className="min-w-0">
+          <section aria-label="Hasil pengecekan" className="min-w-0">
             {aktif?.hasil ? (
               <HasilCek cek={aktif.hasil} />
             ) : aktif?.status === "gagal" ? (
-              <Pesan jenis="galat" judul={`Gagal memeriksa ${aktif.berkas.name}`}>{aktif.galat}</Pesan>
+              <Pesan jenis="galat" judul={`Gagal memeriksa ${aktif.berkas.name}`}>
+                {aktif.galat || "Tidak ada keterangan dari server."} Periksa berkasnya lalu tekan Periksa lagi.
+              </Pesan>
             ) : aktif?.status === "proses" ? (
-              <Kartu className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
-                <div className="relative">
-                  <div className="bg-merek absolute inset-0 animate-ping rounded-2xl opacity-30" />
-                  <div className="bg-merek relative flex h-16 w-16 items-center justify-center rounded-2xl text-white shadow-lg"><ScanSearch className="h-8 w-8" /></div>
-                </div>
-                <div>
-                  <div className="font-bold text-ink">Memeriksa {aktif.berkas.name}</div>
-                  <div className="mt-1 text-sm text-ink-3">Membaca format, struktur, referensi{pakaiAI && aiBisa ? ", lalu menilai substansi dengan AI" : ""}…</div>
+              <Kartu className="flex items-center gap-4 px-6 py-10">
+                <Putar besar />
+                <div role="status" className="min-w-0">
+                  <div className="truncate font-semibold text-ink">Memeriksa {aktif.berkas.name}</div>
+                  <div className="mt-0.5 text-sm text-ink-2">Membaca format, struktur, dan referensi{pakaiAI && aiBisa ? ", lalu menilai substansi dengan AI" : ""}.</div>
                 </div>
               </Kartu>
             ) : (
               <Kosong
-                ikon={Clock}
-                judul="Hasil pengecekan akan tampil di sini"
-                sub="Setiap temuan juga ditulis sebagai komentar Word atas nama akun Anda, jadi penulis tinggal membuka berkasnya."
+                judul={antrian.length ? "Naskah siap diperiksa" : "Hasil pengecekan tampil di sini"}
+                sub={
+                  antrian.length
+                    ? `Tekan "Periksa ${menunggu} naskah" untuk memulai.`
+                    : "Setiap temuan juga ditulis sebagai komentar Word atas nama akun Anda, jadi penulis tinggal membuka berkasnya."
+                }
               />
             )}
-          </div>
+          </section>
         </div>
       )}
     </>

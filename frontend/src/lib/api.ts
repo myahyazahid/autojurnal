@@ -219,7 +219,7 @@ export const api = {
 };
 
 export function tanggal(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "tanpa tanggal";
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 }
 

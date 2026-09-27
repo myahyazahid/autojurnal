@@ -13,9 +13,9 @@ import { DetailCek, Riwayat } from "./pages/Riwayat";
 
 function LayarMemuat() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-      <LogoAutoJurnal ukuran={52} />
-      <Putar besar />
+    <div role="status" className="flex min-h-screen flex-col items-center justify-center gap-4 text-sm text-ink-2">
+      <LogoAutoJurnal ukuran={44} />
+      <span className="flex items-center gap-2"><Putar /> Memuat AutoJurnal…</span>
     </div>
   );
 }

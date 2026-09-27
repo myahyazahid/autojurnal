@@ -13,9 +13,9 @@ const Konteks = createContext<(jenis: Jenis, judul: string, isi?: string) => voi
 
 const IKON = { sukses: CircleCheck, galat: CircleX, info: Info };
 const WARNA = {
-  sukses: "text-emerald-500",
-  galat: "text-rose-500",
-  info: "text-brand",
+  sukses: "text-ok",
+  galat: "text-brand-tinta",
+  info: "text-ink-2",
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -29,18 +29,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Konteks.Provider value={tampil}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:right-4 sm:items-end">
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:right-4 sm:items-end"
+      >
         {daftar.map((t) => {
           const Ikon = IKON[t.jenis];
           return (
-            <div key={t.id} className="kartu animasi-muncul pointer-events-auto flex w-full max-w-sm items-start gap-3 p-3.5">
-              <Ikon className={`mt-0.5 h-5 w-5 shrink-0 ${WARNA[t.jenis]}`} />
+            <div key={t.id} className="melayang pointer-events-auto flex w-full max-w-sm items-start gap-3 p-3.5">
+              <Ikon className={`mt-0.5 h-5 w-5 shrink-0 ${WARNA[t.jenis]}`} aria-hidden />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-ink">{t.judul}</div>
-                {t.isi && <div className="mt-0.5 text-xs text-ink-2">{t.isi}</div>}
+                {t.isi && <div className="mt-0.5 text-xs break-words text-ink-2">{t.isi}</div>}
               </div>
-              <button onClick={() => tutup(t.id)} className="text-ink-3 hover:text-ink" aria-label="Tutup">
-                <X className="h-4 w-4" />
+              <button type="button" onClick={() => tutup(t.id)} className="ketuk -m-1 inline-flex items-center justify-center rounded-md p-1 text-ink-2 hover:text-ink" aria-label="Tutup notifikasi">
+                <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
           );

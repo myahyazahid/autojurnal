@@ -1,34 +1,37 @@
-import { ArrowRight, BookOpen, Eye, EyeOff, Lock, Mail, MessageSquareText, ShieldCheck, Sparkles, UserRound, Zap } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { api, type KonfigurasiAuth } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { LogoAutoJurnal, LogoGoogle, Pesan, Tombol } from "../components/ui";
 
-function KomentarContoh({ kelas, awalan, pesan, nama, waktu }: { kelas: string; awalan: string; pesan: string; nama: string; waktu: string }) {
+const FAKTA = [
+  { judul: "Aturan dibaca dari template", isi: "Margin, font, struktur bagian, jumlah kata abstrak, sampai ketentuan referensi diambil dari template .docx jurnal." },
+  { judul: "Komentar langsung di Word", isi: "Setiap ketidaksesuaian ditulis sebagai komentar atas nama akun Anda. Penulis tinggal membuka berkasnya." },
+  { judul: "Bot dulu, AI bila diminta", isi: "Format dicek bot secara pasti. AI hanya dipakai bila diaktifkan, untuk menilai isi seperti research gap." },
+];
+
+/** Contoh keluaran: potongan naskah dengan satu komentar Word. Pesannya memakai format asli dari mesin pemeriksa. */
+function ContohKomentar() {
   return (
-    <div className={`kaca w-72 rounded-2xl p-3.5 text-left shadow-2xl shadow-black/20 ${kelas}`}>
-      <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[11px] font-bold text-violet-700">
-          {nama.split(" ").map((w) => w[0]).join("").slice(0, 2)}
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-xs font-semibold text-white">{nama}</div>
-          <div className="text-[10px] text-white/60">{waktu}</div>
+    <figure className="max-w-xl">
+      <div className="grid gap-3 sm:grid-cols-[1fr_15rem]">
+        <div className="rounded-lg border border-brand-garis bg-panel p-5">
+          <div className="font-serif text-sm font-bold text-ink">Abstrak</div>
+          <p className="mt-2 font-serif text-[15px] leading-relaxed text-ink-2">
+            <mark className="rounded-sm bg-brand-soft px-0.5 text-ink">Penelitian ini menganalisis pengaruh literasi digital</mark> terhadap kinerja guru
+            sekolah dasar. Data dikumpulkan melalui kuesioner dan dianalisis dengan regresi linear.
+          </p>
+        </div>
+        <div className="self-start rounded-lg border border-line bg-panel p-3.5">
+          <div className="text-xs font-semibold text-ink">Nama akun Anda</div>
+          <p className="mt-1 text-[13px] leading-snug text-ink-2">Abstrak terdiri atas 174 kata; seharusnya 200–250 kata.</p>
         </div>
       </div>
-      <p className="mt-2 text-[12px] leading-relaxed text-white/90">
-        <span className="font-bold text-white">{awalan}</span> {pesan}
-      </p>
-    </div>
+      <figcaption className="mt-3 text-xs text-ink-2">Contoh komentar yang ditulis ke salinan naskah.</figcaption>
+    </figure>
   );
 }
-
-const FITUR = [
-  { ikon: BookOpen, judul: "Aturan dari template jurnal", isi: "Unggah template, sistem membaca margin, font, struktur, sampai ketentuan referensi." },
-  { ikon: MessageSquareText, judul: "Komentar langsung di Word", isi: "Setiap ketidaksesuaian ditandai sebagai komentar atas nama akun Anda." },
-  { ikon: Sparkles, judul: "Bot + AI", isi: "Format dicek bot secara pasti; substansi seperti research gap dinilai AI." },
-];
 
 export default function Masuk() {
   const { pengguna, setPengguna } = useAuth();
@@ -43,6 +46,7 @@ export default function Masuk() {
   const [lihat, setLihat] = useState(false);
   const [galat, setGalat] = useState(param.get("galat") ?? "");
   const [sibuk, setSibuk] = useState(false);
+  const idSandi = useId();
 
   useEffect(() => {
     api.konfigurasi().then(setKonf).catch(() => undefined);
@@ -66,142 +70,146 @@ export default function Masuk() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      {/* ---------- hero ---------- */}
-      <div className="bg-merek relative hidden overflow-hidden lg:block">
-        <div className="animasi-melayang absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-fuchsia-400/40 blur-3xl" />
-        <div className="animasi-melayang absolute -right-20 bottom-[-120px] h-[460px] w-[460px] rounded-full bg-indigo-400/40 blur-3xl [animation-delay:-6s]" />
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:22px_22px]" />
-        <div className="relative flex min-h-screen flex-col gap-10 p-12 xl:p-16">
+    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      {/* ---------- penjelasan produk (desktop) ---------- */}
+      <div className="hidden border-r border-brand-garis bg-brand-soft lg:block">
+        <div className="flex min-h-screen flex-col gap-12 p-12 xl:p-16">
           <div className="flex items-center gap-3">
-            <span className="rounded-xl bg-white/15 p-1 ring-1 ring-white/25"><LogoAutoJurnal ukuran={40} /></span>
-            <span className="text-xl font-extrabold tracking-tight text-white">AutoJurnal</span>
+            <LogoAutoJurnal ukuran={36} />
+            <span className="font-serif text-xl font-semibold tracking-tight">AutoJurnal</span>
           </div>
 
-          <div className="my-auto max-w-xl">
-            <div className="kaca mb-5 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-white">
-              <Zap className="h-3.5 w-3.5" /> ±0,5 detik per naskah
+          <div className="my-auto space-y-10">
+            <div className="max-w-xl">
+              <h1 className="font-serif text-[40px] leading-[1.15] font-semibold tracking-tight text-ink xl:text-[46px]">
+                Naskah rapi <span className="coret-merah">sesuai template</span>, sebelum reviewer membacanya.
+              </h1>
+              <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-ink-2">
+                Unggah template jurnal sekali. Setelah itu setiap naskah .docx dikembalikan sebagai salinan berkomentar di bagian yang belum sesuai.
+              </p>
             </div>
-            <h1 className="text-4xl leading-[1.1] font-extrabold tracking-tight text-white xl:text-5xl">
-              Naskah rapi sesuai template, <span className="text-white/70">sebelum reviewer melihatnya.</span>
-            </h1>
-            <div className="mt-8 space-y-4">
-              {FITUR.map(({ ikon: Ikon, judul, isi }) => (
-                <div key={judul} className="flex gap-3.5">
-                  <span className="kaca flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"><Ikon className="h-5 w-5" /></span>
-                  <div>
-                    <div className="font-semibold text-white">{judul}</div>
-                    <div className="text-sm text-white/70">{isi}</div>
-                  </div>
+            <ContohKomentar />
+            <dl className="grid max-w-2xl gap-6 border-t border-brand-garis pt-6 xl:grid-cols-3">
+              {FAKTA.map((f) => (
+                <div key={f.judul}>
+                  <dt className="text-sm font-semibold text-ink">{f.judul}</dt>
+                  <dd className="mt-1 text-[13px] leading-relaxed text-ink-2">{f.isi}</dd>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* contoh komentar Word — hanya di layar yang cukup tinggi agar tidak menabrak teks */}
-          <div className="relative hidden h-40 shrink-0 [@media(min-height:860px)]:block">
-            <KomentarContoh kelas="animasi-naik absolute left-0 top-0" awalan="[WAJIB · Abstrak]" pesan="Abstrak 174 kata; seharusnya 200–250 kata." nama="Reviewer Jurnal" waktu="baru saja" />
-            <KomentarContoh kelas="animasi-naik absolute left-64 top-14 [animation-delay:-1.7s] xl:left-80" awalan="[WAJIB · Referensi]" pesan="Jumlah referensi 8, minimal 15." nama="Reviewer Jurnal" waktu="baru saja" />
+            </dl>
           </div>
         </div>
       </div>
 
       {/* ---------- formulir ---------- */}
-      <div className="relative flex items-center justify-center px-5 py-12 sm:px-10">
-        <div className="grid-titik pointer-events-none absolute inset-0 opacity-50 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
-        <div className="animasi-muncul relative w-full max-w-[420px]">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <LogoAutoJurnal ukuran={40} />
-            <span className="text-xl font-extrabold tracking-tight">AutoJurnal</span>
+      <div className="flex items-center justify-center px-4 py-10 sm:px-10">
+        <div className="w-full max-w-[400px]">
+          <div className="mb-8 lg:hidden">
+            <div className="flex items-center gap-3">
+              <LogoAutoJurnal ukuran={36} />
+              <span className="font-serif text-xl font-semibold tracking-tight">AutoJurnal</span>
+            </div>
+            <p className="mt-3 text-sm text-ink-2">Cek naskah .docx sesuai template jurnal, hasilnya berupa komentar Word.</p>
           </div>
-          <h2 className="text-[28px] font-extrabold tracking-tight">{mode === "masuk" ? "Selamat datang kembali" : "Buat akun baru"}</h2>
+          <h2 className="font-serif text-[30px] leading-tight font-semibold tracking-tight">{mode === "masuk" ? "Masuk" : "Buat akun"}</h2>
           <p className="mt-1.5 text-sm text-ink-2">
-            {mode === "masuk" ? "Masuk untuk mulai memeriksa naskah." : "Gunakan akun Google atau email Anda."}
+            {mode === "masuk" ? "Masuk untuk memeriksa naskah dan melihat riwayat Anda." : "Nama akun dipakai sebagai penulis komentar di naskah."}
           </p>
 
           <div className="mt-7 space-y-4">
             {galat && <Pesan jenis="galat">{galat}</Pesan>}
 
-            <a
-              href={konf?.google ? "/api/auth/google" : undefined}
-              aria-disabled={!konf?.google}
-              className={`flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-line bg-panel text-[15px] font-semibold text-ink shadow-sm transition ${
-                konf?.google ? "hover:border-line-2 hover:shadow-md active:scale-[0.99]" : "cursor-not-allowed opacity-55"
-              }`}
-            >
-              <LogoGoogle /> {mode === "masuk" ? "Masuk" : "Daftar"} dengan Google
-            </a>
-            {konf && !konf.google && (
-              <p className="-mt-2 text-center text-[11px] text-ink-3">Login Google belum aktif — admin perlu mengisi GOOGLE_CLIENT_ID di .env</p>
+            {konf?.google ? (
+              <a
+                href="/api/auth/google"
+                className="ketuk flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-line-2 bg-panel text-[15px] font-semibold text-ink transition-colors hover:border-isian hover:bg-panel-2"
+              >
+                <LogoGoogle /> {mode === "masuk" ? "Masuk" : "Daftar"} dengan Google
+              </a>
+            ) : (
+              <div>
+                <button type="button" disabled className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-3 rounded-lg border border-line-2 bg-panel text-[15px] font-semibold text-ink opacity-55">
+                  <LogoGoogle /> {mode === "masuk" ? "Masuk" : "Daftar"} dengan Google
+                </button>
+                {konf && <p className="mt-1.5 text-center text-xs text-ink-2">Login Google belum aktif. Admin perlu mengisi GOOGLE_CLIENT_ID di .env.</p>}
+              </div>
             )}
 
-            <div className="flex items-center gap-3 text-xs font-medium text-ink-3">
-              <span className="h-px flex-1 bg-line" /> atau dengan email <span className="h-px flex-1 bg-line" />
+            <div className="flex items-center gap-3 text-xs font-medium text-ink-2">
+              <span className="h-px flex-1 bg-line-2" /> atau dengan email <span className="h-px flex-1 bg-line-2" />
             </div>
 
             {mode === "daftar" && konf && !konf.daftar ? (
               <Pesan jenis="info">Pendaftaran dengan email dinonaktifkan admin. Silakan gunakan Google.</Pesan>
             ) : (
-              <form onSubmit={kirim} className="space-y-3.5">
+              <form onSubmit={kirim} className="space-y-4">
                 {mode === "daftar" && (
-                  <Isian ikon={UserRound} label="Nama lengkap" nilai={nama} ubah={setNama} placeholder="Nama yang tampil di komentar" autoComplete="name" wajib />
+                  <Isian label="Nama lengkap" nilai={nama} ubah={setNama} placeholder="Nama yang tampil di komentar" autoComplete="name" wajib />
                 )}
-                <Isian ikon={Mail} label="Email" jenis="email" nilai={email} ubah={setEmail} placeholder="nama@gmail.com" autoComplete="email" wajib />
+                <Isian label="Email" jenis="email" nilai={email} ubah={setEmail} placeholder="email@example.com" autoComplete="email" wajib />
                 <div>
-                  <label className="label">Kata sandi</label>
+                  <label className="label" htmlFor={idSandi}>Kata sandi</label>
                   <div className="relative">
-                    <Lock className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-ink-3" />
                     <input
-                      className="input pr-10 pl-10"
+                      id={idSandi}
+                      className="input pr-12"
                       type={lihat ? "text" : "password"}
                       value={sandi}
                       onChange={(e) => setSandi(e.target.value)}
-                      placeholder={mode === "daftar" ? "Minimal 8 karakter" : "••••••••"}
+                      placeholder={mode === "daftar" ? "Minimal 8 karakter" : ""}
                       autoComplete={mode === "masuk" ? "current-password" : "new-password"}
                       minLength={mode === "daftar" ? 8 : undefined}
                       required
                     />
-                    <button type="button" onClick={() => setLihat(!lihat)} className="absolute top-1/2 right-3 -translate-y-1/2 text-ink-3 hover:text-ink" aria-label="Tampilkan sandi">
-                      {lihat ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <button
+                      type="button"
+                      onClick={() => setLihat(!lihat)}
+                      aria-pressed={lihat}
+                      aria-label={lihat ? "Sembunyikan sandi" : "Tampilkan sandi"}
+                      className="ketuk absolute top-1/2 right-1 inline-flex -translate-y-1/2 items-center justify-center rounded-md p-2 text-ink-2 hover:text-ink"
+                    >
+                      {lihat ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
                     </button>
                   </div>
                 </div>
                 <Tombol type="submit" varian="utama" ukuran="besar" className="w-full" memuat={sibuk}>
-                  {mode === "masuk" ? "Masuk" : "Buat akun"} {!sibuk && <ArrowRight className="h-4 w-4" />}
+                  {mode === "masuk" ? "Masuk" : "Buat akun"}
                 </Tombol>
               </form>
             )}
 
             <p className="pt-1 text-center text-sm text-ink-2">
               {mode === "masuk" ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
-              <button onClick={() => { setMode(mode === "masuk" ? "daftar" : "masuk"); setGalat(""); }} className="font-semibold text-brand hover:underline">
+              <button
+                type="button"
+                onClick={() => { setMode(mode === "masuk" ? "daftar" : "masuk"); setGalat(""); }}
+                className="ketuk font-semibold text-brand-tinta underline-offset-2 hover:underline"
+              >
                 {mode === "masuk" ? "Daftar" : "Masuk"}
               </button>
             </p>
             {konf && konf.domain.length > 0 && (
-              <p className="text-center text-[11px] text-ink-3">Hanya untuk email {konf.domain.map((d) => "@" + d).join(", ")}</p>
+              <p className="text-center text-xs text-ink-2">Hanya untuk email {konf.domain.map((d) => "@" + d).join(", ")}</p>
             )}
           </div>
 
-          <div className="mt-10 flex items-center justify-center gap-2 text-[11px] text-ink-3">
-            <ShieldCheck className="h-3.5 w-3.5" /> Naskah langsung dihapus setelah diperiksa
-          </div>
+          <p className="mt-10 flex items-center justify-center gap-2 text-xs text-ink-2">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Naskah langsung dihapus setelah diperiksa
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-function Isian({ ikon: Ikon, label, nilai, ubah, jenis = "text", placeholder, autoComplete, wajib }: {
-  ikon: typeof Mail; label: string; nilai: string; ubah: (v: string) => void; jenis?: string; placeholder?: string; autoComplete?: string; wajib?: boolean;
+function Isian({ label, nilai, ubah, jenis = "text", placeholder, autoComplete, wajib }: {
+  label: string; nilai: string; ubah: (v: string) => void; jenis?: string; placeholder?: string; autoComplete?: string; wajib?: boolean;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className="label">{label}</label>
-      <div className="relative">
-        <Ikon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-ink-3" />
-        <input className="input pl-10" type={jenis} value={nilai} onChange={(e) => ubah(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} required={wajib} />
-      </div>
+      <label className="label" htmlFor={id}>{label}</label>
+      <input id={id} className="input" type={jenis} value={nilai} onChange={(e) => ubah(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} required={wajib} />
     </div>
   );
 }

@@ -1,18 +1,24 @@
-import { CircleCheck, CloudUpload, Info, LoaderCircle, OctagonAlert, ShieldCheck, ShieldX, TriangleAlert, type LucideIcon } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { CircleCheck, FileUp, Info, LoaderCircle, OctagonAlert, TriangleAlert, type LucideIcon } from "lucide-react";
+import { useId, useRef, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 type Varian = "utama" | "biasa" | "bahaya" | "hantu" | "lembut";
 
 const gayaTombol: Record<Varian, string> = {
-  utama:
-    "bg-merek text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:brightness-110 disabled:opacity-50 disabled:shadow-none",
-  biasa: "border border-line bg-panel text-ink hover:border-line-2 hover:bg-panel-2 shadow-xs disabled:opacity-50",
-  bahaya: "border border-rose-200 bg-panel text-rose-600 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-500/10 disabled:opacity-50",
+  utama: "bg-brand-kuat text-white hover:bg-brand-kuat-2 disabled:opacity-50",
+  biasa: "border border-line-2 bg-panel text-ink hover:border-isian hover:bg-panel-2 disabled:opacity-50",
+  bahaya: "border border-brand-garis bg-panel text-brand-tinta hover:bg-brand-soft disabled:opacity-50",
   hantu: "text-ink-2 hover:bg-panel-3 hover:text-ink disabled:opacity-40",
-  lembut: "bg-brand-soft text-brand hover:brightness-95 dark:hover:brightness-125 disabled:opacity-50",
+  lembut: "bg-brand-soft text-brand-tinta hover:bg-brand-garis/70 disabled:opacity-50",
 };
 
-const ukuranTombol = { kecil: "h-8 px-3 text-xs gap-1.5 rounded-lg", sedang: "h-10 px-4 text-sm gap-2 rounded-xl", besar: "h-12 px-6 text-[15px] gap-2.5 rounded-xl" };
+const ukuranTombol = {
+  kecil: "h-8 px-3 text-xs gap-1.5 rounded-md",
+  sedang: "h-10 px-4 text-sm gap-2 rounded-lg",
+  besar: "h-11 px-5 text-[15px] gap-2 rounded-lg",
+};
+
+const dasarTombol = "ketuk inline-flex items-center justify-center font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed";
 
 export function Tombol({
   varian = "biasa",
@@ -28,33 +34,39 @@ export function Tombol({
       type="button"
       {...props}
       disabled={props.disabled || memuat}
-      className={`inline-flex items-center justify-center font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed ${ukuranTombol[ukuran]} ${gayaTombol[varian]} ${className}`}
+      aria-busy={memuat || undefined}
+      className={`${dasarTombol} ${ukuranTombol[ukuran]} ${gayaTombol[varian]} ${className}`}
     >
-      {memuat ? <LoaderCircle className="h-4 w-4 animate-spin" /> : Ikon ? <Ikon className="h-4 w-4" /> : null}
+      {memuat ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden /> : Ikon ? <Ikon className="h-4 w-4" aria-hidden /> : null}
       {children}
     </button>
   );
 }
 
-export function TautanTombol({ href, children, varian = "biasa", ukuran = "sedang", ikon: Ikon, className = "" }: {
-  href: string; children: ReactNode; varian?: Varian; ukuran?: keyof typeof ukuranTombol; ikon?: LucideIcon; className?: string;
+/** Tombol yang sebenarnya tautan: `href` untuk unduhan/API, `ke` untuk halaman di aplikasi. */
+export function TautanTombol({ href, ke, children, varian = "biasa", ukuran = "sedang", ikon: Ikon, className = "", ...aria }: {
+  href?: string; ke?: string; children?: ReactNode; varian?: Varian; ukuran?: keyof typeof ukuranTombol; ikon?: LucideIcon; className?: string;
+  "aria-label"?: string; title?: string;
 }) {
-  return (
-    <a href={href} className={`inline-flex items-center justify-center font-semibold whitespace-nowrap transition-all active:scale-[0.98] ${ukuranTombol[ukuran]} ${gayaTombol[varian]} ${className}`}>
-      {Ikon && <Ikon className="h-4 w-4" />}
+  const kelas = `${dasarTombol} ${ukuranTombol[ukuran]} ${gayaTombol[varian]} ${className}`;
+  const isi = (
+    <>
+      {Ikon && <Ikon className="h-4 w-4" aria-hidden />}
       {children}
-    </a>
+    </>
   );
+  return ke ? <Link to={ke} className={kelas} {...aria}>{isi}</Link> : <a href={href} className={kelas} {...aria}>{isi}</a>;
 }
 
 export function Putar({ besar, className = "" }: { besar?: boolean; className?: string }) {
-  return <LoaderCircle className={`animate-spin text-brand ${besar ? "h-7 w-7" : "h-4 w-4"} ${className}`} aria-label="memuat" />;
+  return <LoaderCircle className={`animate-spin text-brand-kuat ${besar ? "h-6 w-6" : "h-4 w-4"} ${className}`} aria-hidden />;
 }
 
-export function MemuatHalaman() {
+export function MemuatHalaman({ teks = "Memuat…" }: { teks?: string }) {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center">
+    <div role="status" className="flex min-h-[40vh] items-center justify-center gap-3 text-sm text-ink-2">
       <Putar besar />
+      {teks}
     </div>
   );
 }
@@ -63,103 +75,96 @@ export function Kartu({ children, className = "" }: { children: ReactNode; class
   return <div className={`kartu ${className}`}>{children}</div>;
 }
 
-export function KotakIkon({ ikon: Ikon, warna = "merek", ukuran = "sedang" }: { ikon: LucideIcon; warna?: "merek" | "lembut"; ukuran?: "kecil" | "sedang" | "besar" }) {
-  const u = { kecil: "h-8 w-8 rounded-lg", sedang: "h-10 w-10 rounded-xl", besar: "h-12 w-12 rounded-2xl" }[ukuran];
-  const i = { kecil: "h-4 w-4", sedang: "h-5 w-5", besar: "h-6 w-6" }[ukuran];
+export function JudulHalaman({ judul, sub, aksi, kecil }: { judul: ReactNode; sub?: ReactNode; aksi?: ReactNode; kecil?: ReactNode }) {
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center ${u} ${warna === "merek" ? "bg-merek text-white shadow-md shadow-indigo-500/25" : "bg-brand-soft text-brand"}`}>
-      <Ikon className={i} />
-    </span>
-  );
-}
-
-export function JudulHalaman({ judul, sub, aksi, ikon, kecil }: { judul: ReactNode; sub?: ReactNode; aksi?: ReactNode; ikon?: LucideIcon; kecil?: ReactNode }) {
-  return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-      <div className="flex items-start gap-3.5">
-        {ikon && <KotakIkon ikon={ikon} ukuran="besar" />}
-        <div>
-          {kecil && <div className="mb-1 text-xs font-semibold tracking-wide text-brand uppercase">{kecil}</div>}
-          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[28px]">{judul}</h1>
-          {sub && <p className="mt-1 max-w-2xl text-sm text-ink-2">{sub}</p>}
-        </div>
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
+      <div className="min-w-0">
+        {kecil && <div className="mb-2 text-sm font-semibold text-ink-2">{kecil}</div>}
+        <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight text-ink sm:text-[32px]">{judul}</h1>
+        {sub && <p className="mt-1.5 max-w-2xl text-sm text-ink-2">{sub}</p>}
       </div>
       {aksi && <div className="flex flex-wrap items-center gap-2">{aksi}</div>}
     </div>
   );
 }
 
+/* Warna lencana hanya untuk status yang nyata: wajib (tinta merah), saran (kuning), siap (hijau). */
 const gayaLencana = {
-  wajib: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/25",
-  saran: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/25",
-  ai: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/25",
-  netral: "bg-panel-3 text-ink-2 ring-line",
-  sukses: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/25",
-  info: "bg-brand-soft text-brand ring-brand/20",
+  wajib: "bg-brand-soft text-brand-tinta",
+  saran: "bg-waspada-soft text-waspada",
+  ai: "bg-panel text-ink ring-1 ring-inset ring-isian",
+  netral: "bg-panel-3 text-ink-2",
+  sukses: "bg-ok-soft text-ok",
+  info: "bg-panel-3 text-ink",
 };
 
 export function Lencana({ jenis = "netral", children, ikon: Ikon }: { jenis?: keyof typeof gayaLencana; children: ReactNode; ikon?: LucideIcon }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ring-1 ring-inset ${gayaLencana[jenis]}`}>
-      {Ikon && <Ikon className="h-3 w-3" />}
+    <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${gayaLencana[jenis]}`}>
+      {Ikon && <Ikon className="h-3 w-3" aria-hidden />}
       {children}
     </span>
   );
 }
 
 const gayaPesan = {
-  info: { k: "border-brand/20 bg-brand-soft/60 text-ink", i: Info, w: "text-brand" },
-  peringatan: { k: "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100", i: TriangleAlert, w: "text-amber-500" },
-  galat: { k: "border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-100", i: OctagonAlert, w: "text-rose-500" },
-  sukses: { k: "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-100", i: CircleCheck, w: "text-emerald-500" },
+  info: { k: "border-line bg-panel-2", i: Info, w: "text-ink-2" },
+  peringatan: { k: "border-waspada/25 bg-waspada-soft", i: TriangleAlert, w: "text-waspada" },
+  galat: { k: "border-brand-garis bg-brand-soft", i: OctagonAlert, w: "text-brand-tinta" },
+  sukses: { k: "border-ok/25 bg-ok-soft", i: CircleCheck, w: "text-ok" },
 };
 
-export function Pesan({ jenis = "info", judul, children }: { jenis?: keyof typeof gayaPesan; judul?: ReactNode; children?: ReactNode }) {
+export function Pesan({ jenis = "info", judul, children, aksi }: { jenis?: keyof typeof gayaPesan; judul?: ReactNode; children?: ReactNode; aksi?: ReactNode }) {
   const g = gayaPesan[jenis];
   const Ikon = g.i;
   return (
-    <div className={`flex gap-3 rounded-xl border px-4 py-3 text-sm ${g.k}`}>
-      <Ikon className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${g.w}`} />
-      <div className="min-w-0">
+    <div role={jenis === "galat" ? "alert" : "status"} className={`flex gap-3 rounded-lg border px-4 py-3 text-sm text-ink ${g.k}`}>
+      <Ikon className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${g.w}`} aria-hidden />
+      <div className="min-w-0 flex-1">
         {judul && <div className="font-semibold">{judul}</div>}
-        {children && <div className={`${judul ? "mt-1" : ""} opacity-90`}>{children}</div>}
+        {children && <div className={`${judul ? "mt-1" : ""} break-words text-ink-2`}>{children}</div>}
+        {aksi && <div className="mt-2.5">{aksi}</div>}
       </div>
     </div>
   );
 }
 
-export function Sakelar({ nyala, ubah, label, keterangan, nonaktif }: {
-  nyala: boolean; ubah: (v: boolean) => void; label: ReactNode; keterangan?: ReactNode; nonaktif?: boolean;
+export function Sakelar({ nyala, ubah, label, keterangan, nonaktif, labelAria }: {
+  nyala: boolean; ubah: (v: boolean) => void; label: ReactNode; keterangan?: ReactNode; nonaktif?: boolean; labelAria?: string;
 }) {
+  const id = useId();
   return (
-    <label className={`flex items-start gap-3 ${nonaktif ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+    <div className={`flex items-start gap-3 ${nonaktif ? "opacity-60" : ""}`}>
       <button
+        id={id}
         type="button"
         role="switch"
         aria-checked={nyala}
+        aria-label={labelAria}
+        aria-describedby={keterangan ? `${id}-ket` : undefined}
         disabled={nonaktif}
         onClick={() => ubah(!nyala)}
-        className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${nyala ? "bg-merek" : "bg-line-2"}`}
+        className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors before:absolute before:-inset-2.5 before:content-[''] disabled:cursor-not-allowed ${nyala ? "bg-brand-kuat" : "bg-isian"}`}
       >
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all ${nyala ? "left-[22px]" : "left-0.5"}`} />
+        <span className={`absolute h-5 w-5 rounded-full bg-white shadow-sm transition-[left] ${nyala ? "left-[22px]" : "left-0.5"}`} />
       </button>
-      <span>
-        <span className="block text-sm font-semibold text-ink">{label}</span>
-        {keterangan && <span className="mt-0.5 block text-xs text-ink-2">{keterangan}</span>}
-      </span>
-    </label>
+      {(label || keterangan) && (
+        <span className="min-w-0">
+          {label && <label htmlFor={id} className={`block text-sm font-semibold text-ink ${nonaktif ? "cursor-not-allowed" : "cursor-pointer"}`}>{label}</label>}
+          {keterangan && <span id={`${id}-ket`} className="mt-0.5 block text-xs text-ink-2">{keterangan}</span>}
+        </span>
+      )}
+    </div>
   );
 }
 
-export function Kosong({ judul, sub, aksi, ikon: Ikon = Info }: { judul: string; sub?: ReactNode; aksi?: ReactNode; ikon?: LucideIcon }) {
+export function Kosong({ judul, sub, aksi, ikon: Ikon }: { judul: string; sub?: ReactNode; aksi?: ReactNode; ikon?: LucideIcon }) {
   return (
-    <div className="grid-titik relative overflow-hidden rounded-2xl border border-dashed border-line-2 bg-panel/60 px-6 py-14 text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
-        <Ikon className="h-7 w-7" />
-      </div>
-      <div className="text-base font-bold text-ink">{judul}</div>
+    <div className="rounded-xl border border-dashed border-line-2 bg-panel px-6 py-12 text-center">
+      {Ikon && <Ikon className="mx-auto mb-3 h-6 w-6 text-ink-3" aria-hidden />}
+      <div className="font-serif text-lg font-semibold text-ink">{judul}</div>
       {sub && <div className="mx-auto mt-1.5 max-w-md text-sm text-ink-2">{sub}</div>}
-      {aksi && <div className="mt-5 flex justify-center gap-2">{aksi}</div>}
+      {aksi && <div className="mt-5 flex flex-wrap justify-center gap-2">{aksi}</div>}
     </div>
   );
 }
@@ -173,7 +178,13 @@ export function ZonaUnggah({ ganda, terima = ".docx", pilih, label, sub, ringkas
     <div
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && ref.current?.click()}
+      aria-label={`${label}. ${sub ?? ""}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          ref.current?.click();
+        }
+      }}
       onClick={() => ref.current?.click()}
       onDragOver={(e) => {
         e.preventDefault();
@@ -186,22 +197,20 @@ export function ZonaUnggah({ ganda, terima = ".docx", pilih, label, sub, ringkas
         const f = Array.from(e.dataTransfer.files);
         if (f.length) pilih(ganda ? f : f.slice(0, 1));
       }}
-      className={`group relative cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed text-center transition-all duration-300 outline-none focus-visible:ring-4 focus-visible:ring-brand/20 ${
-        ringkas ? "px-5 py-7" : "px-6 py-12"
-      } ${seret ? "scale-[1.01] border-brand bg-brand-soft" : "border-line-2 bg-panel-2 hover:border-brand/60 hover:bg-brand-soft/50"}`}
+      className={`flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed text-center transition-colors ${
+        ringkas ? "px-4 py-5" : "px-6 py-10"
+      } ${seret ? "border-brand-kuat bg-brand-soft" : "border-isian bg-panel hover:border-brand-kuat hover:bg-brand-soft/50"}`}
     >
-      <div className="pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-violet-500/20 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100" />
-      <div className={`relative mx-auto mb-3 flex items-center justify-center rounded-2xl bg-merek text-white shadow-lg shadow-indigo-500/30 transition-transform duration-300 group-hover:-translate-y-1 ${ringkas ? "h-11 w-11" : "h-14 w-14"}`}>
-        <CloudUpload className={ringkas ? "h-5 w-5" : "h-7 w-7"} />
-      </div>
-      <div className="relative text-sm font-bold text-ink">{label}</div>
-      {sub && <div className="relative mt-1 text-xs text-ink-3">{sub}</div>}
+      <FileUp className={`mb-2 text-brand-tinta ${ringkas ? "h-5 w-5" : "h-7 w-7"}`} aria-hidden />
+      <div className="text-sm font-semibold text-ink">{label}</div>
+      {sub && <div className="mt-1 text-xs text-ink-3">{sub}</div>}
       <input
         ref={ref}
         type="file"
         accept={terima}
         multiple={ganda}
         className="hidden"
+        tabIndex={-1}
         onChange={(e) => {
           const f = Array.from(e.target.files ?? []);
           if (f.length) pilih(f);
@@ -217,12 +226,12 @@ export function Avatar({ nama, foto, ukuran = 36 }: { nama: string; foto?: strin
   const inisial = nama.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
   if (foto && !gagal) {
     return (
-      <img src={foto} alt={nama} referrerPolicy="no-referrer" onError={() => setGagal(true)}
-        className="shrink-0 rounded-full object-cover ring-2 ring-white/70 dark:ring-white/10" style={{ width: ukuran, height: ukuran }} />
+      <img src={foto} alt="" referrerPolicy="no-referrer" onError={() => setGagal(true)}
+        className="shrink-0 rounded-full object-cover" style={{ width: ukuran, height: ukuran }} />
     );
   }
   return (
-    <span className="bg-merek inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-white/70 dark:ring-white/10"
+    <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand-soft font-bold text-brand-tinta"
       style={{ width: ukuran, height: ukuran, fontSize: ukuran * 0.38 }}>
       {inisial}
     </span>
@@ -230,7 +239,7 @@ export function Avatar({ nama, foto, ukuran = 36 }: { nama: string; foto?: strin
 }
 
 export function Kerangka({ className = "" }: { className?: string }) {
-  return <div className={`kilau rounded-xl ${className}`} />;
+  return <div aria-hidden className={`kilau rounded-lg ${className}`} />;
 }
 
 export function LogoGoogle({ className = "h-5 w-5" }: { className?: string }) {
@@ -244,28 +253,14 @@ export function LogoGoogle({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+/** Logo yang sudah ada (dokumen + centang), diwarnai ulang merah lembut. Warna tetap di kedua tema. */
 export function LogoAutoJurnal({ ukuran = 36 }: { ukuran?: number }) {
   return (
-    <span className="bg-merek relative inline-flex shrink-0 items-center justify-center rounded-xl shadow-lg shadow-violet-500/30" style={{ width: ukuran, height: ukuran }}>
-      <svg viewBox="0 0 32 32" style={{ width: ukuran * 0.62, height: ukuran * 0.62 }} aria-hidden>
-        <path d="M9 5.5h9.5l5 5V25a1.5 1.5 0 0 1-1.5 1.5H9A1.5 1.5 0 0 1 7.5 25V7A1.5 1.5 0 0 1 9 5.5z" fill="#fff" />
-        <path d="M18.5 5.5v5h5" fill="#e9e5ff" />
-        <path d="M11.5 17.5l3 3 6-6.5" stroke="#6d28d9" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
-  );
-}
-
-/** Lencana putusan scope — warna solid agar langsung terlihat di daftar. */
-export function LencanaScope({ keputusan, besar }: { keputusan?: "terima" | "tolak"; besar?: boolean }) {
-  if (!keputusan) return null;
-  const sesuai = keputusan === "terima";
-  const Ikon = sesuai ? ShieldCheck : ShieldX;
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full font-bold whitespace-nowrap text-white shadow-sm ${
-      besar ? "px-2.5 py-1 text-xs" : "px-2 py-0.5 text-[11px]"} ${sesuai ? "bg-emerald-500 shadow-emerald-500/30" : "bg-rose-500 shadow-rose-500/30"}`}>
-      <Ikon className={besar ? "h-3.5 w-3.5" : "h-3 w-3"} />
-      {sesuai ? "Sesuai scope" : "Tidak sesuai scope"}
-    </span>
+    <svg viewBox="0 0 32 32" style={{ width: ukuran, height: ukuran }} className="shrink-0" aria-hidden>
+      <rect width="32" height="32" rx="7" fill="#e06a6a" />
+      <path d="M11 6.5h8.5l4.5 4.5v13.5a1.5 1.5 0 0 1-1.5 1.5H11a1.5 1.5 0 0 1-1.5-1.5V8A1.5 1.5 0 0 1 11 6.5z" fill="#fff" />
+      <path d="M19.5 6.5V11H24" fill="#fceeee" />
+      <path d="M12.8 17.4l2.8 2.8 5.4-5.9" stroke="#a8323a" strokeWidth="2.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

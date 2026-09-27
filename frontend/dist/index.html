@@ -3,18 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#5b4cf0" />
+    <meta name="theme-color" content="#faf7f6" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>AutoJurnal — Cek Naskah Otomatis</title>
+    <title>AutoJurnal · Cek naskah sesuai template</title>
     <script>
-      // pasang tema sebelum React dimuat agar tidak berkedip
+      // pasang tema sebelum React dimuat agar tidak berkedip; bawaan terang
       try {
         var t = localStorage.getItem("aj_tema");
-        if (t === "gelap" || ((!t || t === "sistem") && matchMedia("(prefers-color-scheme: dark)").matches)) document.documentElement.classList.add("dark");
+        if (t === "gelap" || (t === "sistem" && matchMedia("(prefers-color-scheme: dark)").matches)) document.documentElement.classList.add("dark");
       } catch (e) {}
     </script>
-    <script type="module" crossorigin src="/assets/index-noKzfB_-.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-C_eJXi89.css">
+    <script type="module" crossorigin src="/assets/index-DXWJ__2R.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-s3EHXshK.css">
   </head>
   <body>
     <div id="root"></div>
