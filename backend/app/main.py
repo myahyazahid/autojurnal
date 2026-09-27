@@ -338,6 +338,11 @@ async def cek(naskah: UploadFile = File(...), jurnal_id: int = Form(...), pakai_
     try:
         hasil = await asyncio.to_thread(cek_naskah, str(masuk), prof, j.nama, keluar, tambahan, penulis, pemeriksa, penilai_scope)
         hasil["penulis_komentar"] = penulis
+        if hasil.get("scope") is None:  # jelaskan kenapa scope tidak dinilai, agar tampil di web
+            hasil["scope"] = {"alasan_tidak_dinilai": (
+                "Profil jurnal ini belum berisi Focus & Scope." if not prof.scope.fokus_dan_ruang_lingkup.strip()
+                else "Penilaian scope dimatikan di profil jurnal." if not prof.scope.cek_ai
+                else "Opsi “Cek substansi & scope dengan AI” tidak dinyalakan saat pengecekan.")}
         row.hasil_json = json.dumps(hasil, ensure_ascii=False)
         row.file_hasil = keluar.name
     except Exception as e:

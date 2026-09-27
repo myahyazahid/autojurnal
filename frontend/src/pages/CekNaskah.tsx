@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { api, type Cek, type JurnalRingkas, type StatistikDasbor, type Status } from "../lib/api";
 import { namaDepan, useAuth } from "../lib/auth";
 import HasilCek from "../components/HasilCek";
-import { Kartu, Kerangka, Kosong, Lencana, Pesan, Putar, Sakelar, TautanTombol, Tombol, ZonaUnggah } from "../components/ui";
+import { Kartu, Kerangka, Kosong, Lencana, LencanaScope, Pesan, Putar, Sakelar, TautanTombol, Tombol, ZonaUnggah } from "../components/ui";
 
 interface Antrian {
   berkas: File;
@@ -230,6 +230,7 @@ export default function CekNaskah() {
                           {a.status === "selesai" && a.hasil?.ringkasan && `${a.hasil.ringkasan.masalah} masalah · ${a.hasil.ringkasan.wajib} wajib`}
                         </span>
                       </span>
+                      <LencanaScope keputusan={a.hasil?.scope?.keputusan} />
                       {a.status === "selesai" && a.hasil?.ringkasan && (
                         <Lencana jenis={a.hasil.ringkasan.wajib === 0 ? "sukses" : a.hasil.ringkasan.wajib <= 5 ? "saran" : "wajib"}>
                           {a.hasil.ringkasan.wajib === 0 ? "siap" : a.hasil.ringkasan.wajib <= 5 ? "minor" : "revisi"}

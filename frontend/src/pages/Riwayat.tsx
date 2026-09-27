@@ -5,7 +5,7 @@ import { api, relatif, type Cek } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 import HasilCek from "../components/HasilCek";
-import { JudulHalaman, Kartu, Kerangka, Kosong, Lencana, MemuatHalaman, Pesan, Sakelar, TautanTombol, Tombol } from "../components/ui";
+import { JudulHalaman, Kartu, Kerangka, Kosong, Lencana, LencanaScope, MemuatHalaman, Pesan, Sakelar, TautanTombol, Tombol } from "../components/ui";
 
 export function Riwayat() {
   const { pengguna } = useAuth();
@@ -58,7 +58,8 @@ export function Riwayat() {
                     onChange={(e) => setPilih(e.target.checked ? new Set(tampil.map((c) => c.id)) : new Set())} />
                 </th>
                 <th className="px-2 py-3">Naskah</th>
-                <th className="px-2 py-3">Hasil</th>
+                <th className="px-2 py-3">Scope</th>
+                <th className="px-2 py-3">Format</th>
                 {semua && <th className="px-2 py-3">Pengguna</th>}
                 <th className="px-2 py-3">Waktu</th>
                 <th className="px-4 py-3" />
@@ -87,16 +88,14 @@ export function Riwayat() {
                       </Link>
                     </td>
                     <td className="px-2 py-3">
+                      {c.scope?.keputusan ? <LencanaScope keputusan={c.scope.keputusan} besar /> : <span className="text-xs text-ink-3">belum dinilai</span>}
+                    </td>
+                    <td className="px-2 py-3">
                       {c.status === "gagal" ? <Lencana jenis="wajib">gagal</Lencana> : r ? (
                         <span className="flex flex-wrap items-center gap-1">
                           <Lencana jenis={r.wajib === 0 ? "sukses" : "wajib"}>{r.wajib === 0 ? "siap kirim" : `${r.wajib} wajib`}</Lencana>
                           <Lencana jenis="saran">{r.saran} saran</Lencana>
                           {c.pakai_ai && <Lencana jenis="ai" ikon={Sparkles}>{r.ai}</Lencana>}
-                          {c.scope?.keputusan && (
-                            <Lencana jenis={c.scope.keputusan === "terima" ? "sukses" : "wajib"}>
-                              scope {c.scope.keputusan === "terima" ? "✓ terima" : "✗ tolak"}
-                            </Lencana>
-                          )}
                         </span>
                       ) : null}
                     </td>

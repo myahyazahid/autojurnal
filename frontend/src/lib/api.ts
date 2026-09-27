@@ -72,6 +72,7 @@ export interface HasilScope {
   alasan?: string;
   model?: string;
   galat?: string;
+  alasan_tidak_dinilai?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

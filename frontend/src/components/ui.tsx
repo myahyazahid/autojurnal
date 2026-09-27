@@ -1,4 +1,4 @@
-import { CircleCheck, CloudUpload, Info, LoaderCircle, OctagonAlert, TriangleAlert, type LucideIcon } from "lucide-react";
+import { CircleCheck, CloudUpload, Info, LoaderCircle, OctagonAlert, ShieldCheck, ShieldX, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 
 type Varian = "utama" | "biasa" | "bahaya" | "hantu" | "lembut";
@@ -252,6 +252,20 @@ export function LogoAutoJurnal({ ukuran = 36 }: { ukuran?: number }) {
         <path d="M18.5 5.5v5h5" fill="#e9e5ff" />
         <path d="M11.5 17.5l3 3 6-6.5" stroke="#6d28d9" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
+    </span>
+  );
+}
+
+/** Lencana putusan scope — warna solid agar langsung terlihat di daftar. */
+export function LencanaScope({ keputusan, besar }: { keputusan?: "terima" | "tolak"; besar?: boolean }) {
+  if (!keputusan) return null;
+  const sesuai = keputusan === "terima";
+  const Ikon = sesuai ? ShieldCheck : ShieldX;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full font-bold whitespace-nowrap text-white shadow-sm ${
+      besar ? "px-2.5 py-1 text-xs" : "px-2 py-0.5 text-[11px]"} ${sesuai ? "bg-emerald-500 shadow-emerald-500/30" : "bg-rose-500 shadow-rose-500/30"}`}>
+      <Ikon className={besar ? "h-3.5 w-3.5" : "h-3 w-3"} />
+      {sesuai ? "Sesuai scope" : "Tidak sesuai scope"}
     </span>
   );
 }

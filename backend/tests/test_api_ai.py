@@ -76,6 +76,7 @@ def test_alur_api_dengan_akun(template_docx, naskah_docx, tmp_path):
             r = penulis.post("/api/cek", files={"naskah": ("n.docx", f)}, data={"jurnal_id": j["id"]}).json()
         assert r["status"] == "selesai" and r["ringkasan"]["wajib"] > 0
         assert r["penulis_komentar"] == "Budi Santoso (budi@gmail.com)"
+        assert "belum berisi Focus & Scope" in r["scope"]["alasan_tidak_dinilai"]
 
         # komentar Word ditulis atas nama akun yang login
         berkas = tmp_path / "hasil.docx"
