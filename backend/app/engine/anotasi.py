@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from docx.text.paragraph import Paragraph
 from docx.text.run import Run
@@ -41,12 +41,17 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
     `pemeriksa` = identitas lengkap (nama <email>) yang dicantumkan di komentar ringkasan.
     """
     doc = dm.doc
-    batas = max(1, prof.komentar.maks_komentar_per_masalah)
-    penulis = (penulis or prof.komentar.nama_pemeriksa or "AutoJurnal").strip()
+    ko = prof.komentar
+    batas = max(1, ko.maks_komentar_per_masalah)
+    penulis = (penulis or ko.nama_pemeriksa or "AutoJurnal").strip()
     inisial = _inisial(penulis)
 
+    # yang masuk ke Word: pelanggaran wajib + hasil AI (bila dipakai); saran hanya bila diaktifkan di profil
+    masuk = [t for t in temuan if t.tingkat == "wajib" or t.sumber == "ai" or ko.tulis_saran]
+    id_masuk = {id(t) for t in masuk}
+
     per_kelompok: dict[str, list[Temuan]] = defaultdict(list)
-    for t in temuan:
+    for t in masuk:
         if t.kelompok and t.para is not None:
             per_kelompok[t.kelompok].append(t)
     diringkas: set[int] = set()
@@ -58,13 +63,13 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
 
     per_para: dict[int, list[Temuan]] = defaultdict(list)
     dokumen: list[Temuan] = []
-    for t in temuan:
+    for t in masuk:
         if id(t) in diringkas:
             continue
         (dokumen if t.para is None else per_para[t.para]).append(t)
 
     def baris(t: Temuan) -> str:
-        s = f"{_awalan(t)} {t.pesan}"
+        s = f"{_awalan(t)} {t.pesan}" if ko.label_kategori else t.pesan
         if id(t) in tambahan:
             s += f" (Masalah yang sama juga ada di {tambahan[id(t)]} tempat lain.)"
         return s
@@ -84,28 +89,28 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
         (p for p in dm.paras if not p.kosong), None)
     if jangkar is not None:
         unik: dict[str, Temuan] = {}
-        for i, t in enumerate(temuan):
+        for i, t in enumerate(masuk):
             unik.setdefault(t.kelompok or f"#{i}", t)
-        hit = Counter("ai" if t.sumber == "ai" else t.tingkat for t in unik.values())
-        bagian = [f"{hit['wajib']} wajib", f"{hit['saran']} saran"] + ([f"{hit['ai']} saran AI"] if hit["ai"] else [])
-        isi = [
-            f"HASIL CEK OTOMATIS — {nama_jurnal}",
-            f"{len(unik)} jenis masalah ({', '.join(bagian)}), muncul di {len(temuan)} tempat.",
-        ]
+        isi = [f"Hasil cek otomatis — {nama_jurnal}"]
+        if unik:
+            isi.append(f"{len(unik)} hal perlu diperbaiki (ditandai di {len(masuk)} tempat pada naskah).")
+        else:
+            isi.append("Tidak ada pelanggaran aturan template yang ditemukan.")
         if pemeriksa:
-            isi.append(f"Diperiksa oleh: {pemeriksa} · AutoJurnal")
+            isi.append(f"Diperiksa oleh: {pemeriksa}")
         if dokumen:
             isi.append("")
-            isi.append("Masalah tingkat dokumen:")
             isi.extend(f"• {baris(t)}" for t in dokumen)
-        isi.append("")
-        isi.append("WAJIB = tidak sesuai aturan template. SARAN = perlu dicek manual. Rincian ada di komentar masing-masing bagian.")
+        if ko.label_kategori:
+            isi.append("")
+            isi.append("WAJIB = tidak sesuai aturan template. SARAN = perlu dicek manual.")
         doc.add_comment(_runs_jangkar(dm, jangkar), text="\n".join(isi), author=penulis, initials=inisial)
 
     hasil = []
     for t in temuan:
         d = t.ke_dict()
         d["diringkas"] = id(t) in diringkas
+        d["ditulis"] = id(t) in id_masuk and id(t) not in diringkas
         d["cuplikan"] = dm.paras[t.para].cuplikan(90) if t.para is not None else None
         hasil.append(d)
     return hasil

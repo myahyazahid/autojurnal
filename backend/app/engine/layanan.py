@@ -42,6 +42,7 @@ def cek_naskah(
         "ringkasan": {
             "masalah": len(masalah),
             "kemunculan": len(temuan),
+            "di_word": sum(1 for d in daftar if d["ditulis"]),  # yang benar-benar ditulis sebagai komentar
             "wajib": sum(1 for t in masalah if t.tingkat == "wajib" and t.sumber == "bot"),
             "saran": sum(1 for t in masalah if t.tingkat == "saran" and t.sumber == "bot"),
             "ai": sum(1 for t in masalah if t.sumber == "ai"),

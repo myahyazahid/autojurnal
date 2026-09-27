@@ -74,8 +74,26 @@ def test_cek_naskah_menemukan_pelanggaran(template_docx, naskah_docx, tmp_path):
     d = docx.Document(str(keluar))
     komentar = list(d.comments)
     assert len(komentar) >= 10
-    assert any("HASIL CEK OTOMATIS" in k.text for k in komentar)
+    semua_teks = " | ".join(k.text for k in komentar)
+    assert "Hasil cek otomatis — Jurnal Uji" in semua_teks
+    # bawaan: tanpa label [WAJIB · ...] dan temuan saran tidak ditulis ke Word
+    assert "[WAJIB" not in semua_teks and "[SARAN" not in semua_teks
+    assert "Margin kiri 2,54 cm, seharusnya 4 cm." in semua_teks
+    assert "Paragraf hanya 1 kalimat" not in semua_teks and "tidak ditemukan padanannya" not in semua_teks
     assert hasil["ringkasan"]["wajib"] > 0 and hasil["statistik"]["jumlah_referensi"] == 3
+    assert 0 < hasil["ringkasan"]["di_word"] < hasil["ringkasan"]["kemunculan"]
+    assert all(not t["ditulis"] for t in hasil["temuan"] if t["tingkat"] == "saran")
+
+
+def test_saran_dan_label_bisa_dinyalakan(template_docx, naskah_docx, tmp_path):
+    prof, _ = ekstrak_template(str(template_docx))
+    prof.komentar.tulis_saran = True
+    prof.komentar.label_kategori = True
+    keluar = tmp_path / "hasil_lengkap.docx"
+    cek_naskah(str(naskah_docx), prof, "Jurnal Uji", keluar)
+    semua_teks = " | ".join(k.text for k in docx.Document(str(keluar)).comments)
+    assert "[WAJIB · Tata Letak] Margin kiri" in semua_teks
+    assert "[SARAN · Paragraf] Paragraf hanya 1 kalimat" in semua_teks
 
 
 def test_naskah_patuh_tanpa_temuan_format(template_docx, tmp_path):

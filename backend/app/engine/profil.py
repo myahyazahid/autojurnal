@@ -151,6 +151,14 @@ class PengaturanKomentar(_Dasar):
     maks_komentar_per_masalah: int = Field(
         3, title="Maks. komentar untuk masalah yang sama", description="Sisanya diringkas agar tidak membanjiri naskah"
     )
+    tulis_saran: bool = Field(
+        False, title="Tulis temuan SARAN ke naskah Word",
+        description="Bila mati, temuan saran hanya tampil di web; naskah hanya berisi pelanggaran wajib (dan hasil AI bila dipakai)",
+    )
+    label_kategori: bool = Field(
+        False, title="Awali komentar dengan label [WAJIB · Kategori]",
+        description="Bila mati, komentar langsung berisi pesannya saja",
+    )
 
 
 class Profil(_Dasar):

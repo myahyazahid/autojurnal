@@ -147,6 +147,7 @@ export default function HasilCek({ cek }: { cek: Cek }) {
   }, [semuaGrup]);
   const r = cek.ringkasan;
   const st = cek.statistik;
+  const saranWeb = temuan.filter((t) => t.tingkat === "saran" && t.sumber === "bot" && t.ditulis === false).length;
 
   if (cek.status === "gagal") return <Pesan jenis="galat" judul={`Gagal memeriksa ${cek.nama_file}`}>{cek.pesan_galat}</Pesan>;
 
@@ -180,7 +181,7 @@ export default function HasilCek({ cek }: { cek: Cek }) {
                 <Angka nilai={r.wajib} label="wajib diperbaiki" ikon={OctagonAlert} warna="bg-rose-500/12 text-rose-500" />
                 <Angka nilai={r.saran} label="saran / cek manual" ikon={Lightbulb} warna="bg-amber-500/12 text-amber-500" />
                 <Angka nilai={r.ai} label="saran AI" ikon={Sparkles} warna="bg-violet-500/12 text-violet-500" />
-                <Angka nilai={r.kemunculan} label="komentar di naskah" ikon={MessageSquareText} warna="bg-brand-soft text-brand" />
+                <Angka nilai={r.di_word ?? r.kemunculan} label="ditandai di naskah" ikon={MessageSquareText} warna="bg-brand-soft text-brand" />
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                 {[...semuaGrup.entries()].map(([k, d]) => (
@@ -207,6 +208,12 @@ export default function HasilCek({ cek }: { cek: Cek }) {
               {st.judul_bagian.length > 0 && (
                 <div className="mt-1 w-full truncate text-xs text-ink-3">Struktur: {st.judul_bagian.join(" → ")}</div>
               )}
+            </div>
+          )}
+          {saranWeb > 0 && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-800 dark:text-amber-200">
+              <Lightbulb className="h-4 w-4 shrink-0 text-amber-500" />
+              {saranWeb} temuan saran hanya tampil di sini sebagai catatan Anda — tidak ditulis ke naskah Word.
             </div>
           )}
           {cek.penulis_komentar && (

@@ -8,12 +8,14 @@ export interface Temuan {
   kelompok: string | null;
   sumber: "bot" | "ai";
   diringkas: boolean;
+  ditulis?: boolean; // benar-benar ditulis sebagai komentar di Word
   cuplikan: string | null;
 }
 
 export interface Ringkasan {
   masalah: number;
   kemunculan: number;
+  di_word?: number;
   wajib: number;
   saran: number;
   ai: number;
