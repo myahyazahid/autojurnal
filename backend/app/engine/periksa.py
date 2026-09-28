@@ -12,6 +12,7 @@ from .klasifikasi import CAP_GAMBAR, CAP_TABEL, klasifikasi
 from .profil import FormatElemen, Profil
 from .referensi import RX_KURUNG, RX_SITASI_NUM, cek_referensi, entri_pustaka, sitasi_numerik, sitasi_penulis_tahun
 from .katalog import di_luar_batas, ketentuan
+from .halaman import jumlah_halaman
 from .kebersihan import cek_kebersihan
 from .objek import cek_objek, tabel_tata_letak
 from .temuan import Temuan
@@ -531,12 +532,17 @@ def cek_naskah(dm: DocModel, prof: Profil) -> list[Temuan]:
     batas = _batas(jumlah_kata_naskah(dm), an.min_kata, an.maks_kata, "kata")
     if batas:
         out.append(tm("naskah.jumlah_kata", **batas))
-    if dm.halaman and (an.min_halaman or an.maks_halaman):
-        batas = _batas(dm.halaman, an.min_halaman, an.maks_halaman, "halaman")
+    halaman, dasar = jumlah_halaman(dm)
+    if halaman and (an.min_halaman or an.maks_halaman):
+        batas = _batas(halaman, an.min_halaman, an.maks_halaman, "halaman")
         if batas:
             # komentar ditempel di paragraf terakhir supaya muncul di halaman terakhir naskah
             akhir = next((p.i for p in reversed(dm.paras) if not p.kosong), None)
-            out.append(tm("naskah.halaman", para=akhir, **batas))
+            # perkiraan tata letak bisa meleset satu halaman: selisih tipis cukup jadi saran
+            tipis = dasar == "perkiraan" and (
+                (an.maks_halaman and 0 < halaman - an.maks_halaman <= 1) or (an.min_halaman and 0 < an.min_halaman - halaman <= 1))
+            out.append(tm("naskah.halaman", para=akhir, tingkat="saran" if tipis else None,
+                          dasar="menurut perkiraan tata letak" if dasar == "perkiraan" else "menurut data Word", **batas))
     if an.kata_terlarang:
         pola = re.compile(r"\b(" + "|".join(re.escape(k) for k in an.kata_terlarang if k.strip()) + r")\b", re.I)
         for p in dm.paras:
@@ -583,7 +589,7 @@ def statistik(dm: DocModel, prof: Profil) -> dict:
     ab = [p for p in dm.paras if p.peran == "abstrak"]
     return {
         "kata_naskah": jumlah_kata_naskah(dm),
-        "halaman": dm.halaman,
+        "halaman": jumlah_halaman(dm)[0],
         "kata_abstrak": sum(T.hitung_kata(_tanpa_label(p)) for p in ab) if ab else None,
         "judul_bagian": [T._NOMOR.sub("", p.bersih).strip() for p in dm.paras if p.peran == "judul_bagian"],
         "jumlah_referensi": len(entri),

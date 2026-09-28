@@ -204,3 +204,26 @@ def test_naskah_melanggar_aturan_tambahan(template_docx, tmp_path):
     assert "biru (#2F5496)" in pesan["naskah.teks_berwarna"]
     assert next(t for t in temuan if t.kode == "referensi.manajer").tingkat == "wajib"
     assert "$" not in " ".join(t.pesan for t in temuan)
+
+
+def test_jumlah_halaman_tidak_percaya_metadata_basi(tmp_path, monkeypatch):
+    from app.engine import docmodel
+    from app.engine.halaman import jumlah_halaman
+
+    doc = docx.Document()
+    for i in range(3):
+        p = doc.add_paragraph(f"Paragraf halaman {i + 1}. " * 5)
+        if i:
+            p.runs[0]._r.insert(0, OxmlElement("w:lastRenderedPageBreak"))
+    path = tmp_path / "halaman.docx"
+    doc.save(path)
+    monkeypatch.setattr(docmodel.DocModel, "_baca_halaman", staticmethod(lambda sumber: 1))  # metadata basi
+    assert jumlah_halaman(DocModel(str(path))) == (3, "render")
+
+    polos = docx.Document()
+    for _ in range(120):
+        polos.add_paragraph("Kalimat panjang untuk mengisi halaman naskah uji tanpa penanda render dari Word. " * 4)
+    path2 = tmp_path / "polos.docx"
+    polos.save(path2)
+    n, dasar = jumlah_halaman(DocModel(str(path2)))
+    assert dasar == "perkiraan" and n > 5
