@@ -33,6 +33,7 @@ from .db import (Jurnal, Pengecekan, Pengguna, baca_pengaturan, engine, iso, sek
                  simpan_pengaturan)
 from .engine import katalog
 from .engine.ekstrak import ekstrak_template
+from .engine.kecilkan import kecilkan_berkas, rincian
 from .engine.layanan import cek_naskah
 from .engine.profil import Profil, skema_json
 
@@ -348,8 +349,13 @@ def _baris_cek(c: Pengecekan, lengkap: bool = False) -> dict:
     }
     if lengkap:
         d.update(statistik=hasil.get("statistik"), temuan=hasil.get("temuan", []), galat_ai=hasil.get("galat_ai"),
-                 penulis_komentar=hasil.get("penulis_komentar"))
+                 penulis_komentar=hasil.get("penulis_komentar"), ukuran=hasil.get("ukuran"), kecil=hasil.get("kecil"),
+                 file_kecil_tersedia=_berkas_kecil(c).exists())
     return d
+
+
+def _berkas_kecil(c: Pengecekan) -> Path:
+    return DIR_HASIL / f"{c.id}_kecil.docx"
 
 
 def _milik(cid: str, u: Pengguna, s: Session) -> Pengecekan:
@@ -392,12 +398,16 @@ async def cek(naskah: UploadFile = File(...), jurnal_id: int = Form(...), pakai_
                 "Profil jurnal ini belum berisi Focus & Scope." if not prof.scope.fokus_dan_ruang_lingkup.strip()
                 else "Penilaian scope dimatikan di profil jurnal." if not prof.scope.cek_ai
                 else "Opsi “Cek substansi & scope dengan AI” tidak dinyalakan saat pengecekan.")}
+        hasil["ukuran"] = {**rincian(keluar.read_bytes()), "maks_kb": prof.naskah.maks_ukuran_kb}
         row.hasil_json = json.dumps(hasil, ensure_ascii=False)
         row.file_hasil = keluar.name
     except Exception as e:
         row.status, row.pesan_galat = "gagal", f"Naskah tidak bisa diproses: {e}"
     finally:
-        masuk.unlink(missing_ok=True)
+        try:
+            masuk.unlink(missing_ok=True)
+        except OSError:  # di Windows berkas bisa masih terkunci bila pembacaan gagal; dibersihkan tugas berkala
+            pass
     s.add(row)
     s.commit()
     s.refresh(row)
@@ -422,12 +432,34 @@ def _nama_unduh(c: Pengecekan) -> str:
 
 
 @app.get("/api/cek/{cid}/unduh")
-def unduh(cid: str, u: Pengguna = Pengguna_, s: Session = Depends(sesi)):
+def unduh(cid: str, kecil: bool = False, u: Pengguna = Pengguna_, s: Session = Depends(sesi)):
+    c = _milik(cid, u, s)
+    berkas = _berkas_kecil(c) if kecil else (DIR_HASIL / c.file_hasil if c.file_hasil else None)
+    if berkas is None or not berkas.exists():
+        raise HTTPException(404, "Berkas hasil sudah tidak tersedia (terhapus otomatis setelah masa simpan).")
+    nama = _nama_unduh(c).replace(".docx", "_kecil.docx") if kecil else _nama_unduh(c)
+    return FileResponse(berkas, filename=nama,
+                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@app.post("/api/cek/{cid}/kecilkan")
+async def kecilkan_hasil(cid: str, u: Pengguna = Pengguna_, s: Session = Depends(sesi)):
+    """Kecilkan berkas hasil berkomentar sampai di bawah batas ukuran profil jurnal (bawaan 1.900 KB)."""
     c = _milik(cid, u, s)
     if not c.file_hasil or not (DIR_HASIL / c.file_hasil).exists():
         raise HTTPException(404, "Berkas hasil sudah tidak tersedia (terhapus otomatis setelah masa simpan).")
-    return FileResponse(DIR_HASIL / c.file_hasil, filename=_nama_unduh(c),
-                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    hasil = json.loads(c.hasil_json or "{}")
+    target = (hasil.get("ukuran") or {}).get("maks_kb") or 1900
+    try:
+        laporan = await asyncio.to_thread(kecilkan_berkas, DIR_HASIL / c.file_hasil, _berkas_kecil(c), target)
+    except Exception as e:
+        raise HTTPException(400, f"Berkas tidak bisa dikecilkan: {e}")
+    hasil["kecil"] = laporan
+    c.hasil_json = json.dumps(hasil, ensure_ascii=False)
+    s.add(c)
+    s.commit()
+    s.refresh(c)
+    return _baris_cek(c, lengkap=True)
 
 
 @app.get("/api/unduh-zip")
@@ -457,6 +489,7 @@ def hapus_cek(cid: str, u: Pengguna = Pengguna_, s: Session = Depends(sesi)):
     c = _milik(cid, u, s)
     if c.file_hasil:
         (DIR_HASIL / c.file_hasil).unlink(missing_ok=True)
+    _berkas_kecil(c).unlink(missing_ok=True)
     s.delete(c)
     s.commit()
     return {"ok": True}

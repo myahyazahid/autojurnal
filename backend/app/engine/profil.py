@@ -136,6 +136,9 @@ class AturanNaskah(_Dasar):
     catatan_kaki_dilarang: Optional[bool] = Field(None, title="Catatan kaki (footnote) tidak diperbolehkan")
     cek_spasi_ganda: bool = Field(True, title="Cek spasi ganda antarkata")
     cek_baris_kosong: bool = Field(True, title="Cek baris kosong berturut-turut")
+    maks_ukuran_kb: Optional[int] = Field(
+        1900, title="Ukuran berkas maksimal (KB)", description="Di atas batas ini, hasil cek menawarkan tombol Kecilkan ukuran"
+    )
 
 
 class AturanTabelGambar(_Dasar):

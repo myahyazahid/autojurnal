@@ -52,6 +52,25 @@ export interface Cek {
   galat_ai?: string | null;
   penulis_komentar?: string | null;
   scope?: HasilScope | null;
+  ukuran?: UkuranBerkas | null;
+  kecil?: LaporanKecil | null;
+  file_kecil_tersedia?: boolean;
+}
+
+export interface UkuranBerkas {
+  total_kb: number;
+  font_kb: number; // font yang disematkan
+  gambar_kb: number;
+  lain_kb: number;
+  maks_kb: number | null;
+}
+
+export interface LaporanKecil {
+  awal_kb: number;
+  akhir_kb: number;
+  target_kb: number;
+  tercapai: boolean;
+  langkah: { langkah: string; ukuran_kb: number }[];
 }
 
 export interface JurnalRingkas {
@@ -238,7 +257,8 @@ export const api = {
   riwayat: (semua = false) => minta<Cek[]>(`/api/cek${semua ? "?semua=true" : ""}`),
   detailCek: (id: string) => minta<Cek>(`/api/cek/${id}`),
   hapusCek: (id: string) => minta<{ ok: boolean }>(`/api/cek/${id}`, { method: "DELETE" }),
-  urlUnduh: (id: string) => `/api/cek/${id}/unduh`,
+  urlUnduh: (id: string, kecil = false) => `/api/cek/${id}/unduh${kecil ? "?kecil=true" : ""}`,
+  kecilkan: (id: string) => minta<Cek>(`/api/cek/${id}/kecilkan`, { method: "POST" }),
   urlZip: (ids: string[]) => `/api/unduh-zip?${ids.map((i) => `id=${i}`).join("&")}`,
 
   pengaturan: () => minta<Pengaturan>("/api/pengaturan"),

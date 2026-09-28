@@ -1,11 +1,12 @@
 import {
   BadgeCheck, BookMarked, ChevronDown, Download, FileText, Files, Heading, Layers, LayoutTemplate, ListTree, MessageSquareText,
-  OctagonAlert, Pilcrow, ShieldCheck, ShieldX, Table2, Tags, TriangleAlert, Type, UserRound, X, type LucideIcon,
+  OctagonAlert, Pilcrow, ShieldCheck, ShieldX, Shrink, Table2, Tags, TriangleAlert, Type, UserRound, X, type LucideIcon,
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, tanggal, type Cek, type HasilScope, type Ringkasan, type Temuan } from "../lib/api";
-import { IkonBerkas, Kartu, Lencana, Pesan, TautanTombol } from "./ui";
+import { useToast } from "../lib/toast";
+import { IkonBerkas, Kartu, Lencana, Pesan, TautanTombol, Tombol } from "./ui";
 
 type Saring = "semua" | "wajib" | "saran" | "ai";
 
@@ -241,6 +242,61 @@ function BagianKategori({ kategori, daftar, bukaAwal }: { kategori: string; daft
   );
 }
 
+const kb = (n: number) => `${n.toLocaleString("id-ID")} KB`;
+
+/** Peringatan berkas terlalu besar + tombol untuk mengecilkan hasil berkomentar di bawah batas profil jurnal. */
+function UkuranBerkas({ cek }: { cek: Cek }) {
+  const toast = useToast();
+  const [kecil, setKecil] = useState(cek.kecil ?? null);
+  const [tersedia, setTersedia] = useState(!!cek.file_kecil_tersedia);
+  const [sibuk, setSibuk] = useState(false);
+  const u = cek.ukuran;
+  if (!u?.maks_kb || !cek.file_tersedia) return null;
+  if (u.total_kb <= u.maks_kb && !kecil) return null;
+
+  async function jalankan() {
+    setSibuk(true);
+    try {
+      const d = await api.kecilkan(cek.id);
+      setKecil(d.kecil ?? null);
+      setTersedia(!!d.file_kecil_tersedia);
+    } catch (e) {
+      toast("galat", "Berkas gagal dikecilkan", (e as Error).message);
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  if (kecil && tersedia)
+    return (
+      <Pesan
+        jenis={kecil.tercapai ? "sukses" : "peringatan"}
+        judul={kecil.tercapai ? `Berkas dikecilkan: ${kb(kecil.awal_kb)} → ${kb(kecil.akhir_kb)}` : `Berkas dikecilkan ke ${kb(kecil.akhir_kb)}, masih di atas ${kb(kecil.target_kb)}`}
+        aksi={<TautanTombol href={api.urlUnduh(cek.id, true)} varian="utama" ikon={Download}>Unduh versi kecil</TautanTombol>}
+      >
+        {kecil.tercapai
+          ? "Teks, format, dan komentar tidak berubah. " + (kecil.langkah.length > 1 ? "Gambar dikompres seperlunya agar tetap tajam saat dicetak." : "Cukup dengan membuang font yang disematkan, jadi tampilan sama persis.")
+          : "Sisa ukurannya berasal dari teks dan objek lain yang tidak bisa dikompres lagi tanpa mengubah isi naskah."}
+      </Pesan>
+    );
+
+  const rincian = ([["Font yang disematkan", u.font_kb], ["Gambar", u.gambar_kb], ["Teks dan lainnya", u.lain_kb]] as const)
+    .filter(([, n]) => n > 0)
+    .map(([nama, n]) => `${nama} ${kb(n)}`)
+    .join(" · ");
+  return (
+    <Pesan
+      jenis="peringatan"
+      judul={`Ukuran berkas ${kb(u.total_kb)}, di atas batas ${kb(u.maks_kb)}`}
+      aksi={<Tombol ikon={Shrink} onClick={jalankan} memuat={sibuk}>{sibuk ? "Mengecilkan…" : "Kecilkan ukuran"}</Tombol>}
+    >
+      {rincian}. {u.font_kb > u.gambar_kb
+        ? "Sebagian besar berasal dari font yang ikut disematkan ke berkas; membuangnya tidak mengubah tampilan."
+        : "Gambar akan dikompres seperlunya sampai berkas di bawah batas."}
+    </Pesan>
+  );
+}
+
 export default function HasilCek({ cek }: { cek: Cek }) {
   const [saring, setSaring] = useState<Saring>("semua");
   const [kategori, setKategori] = useState<string | null>(null);
@@ -301,6 +357,7 @@ export default function HasilCek({ cek }: { cek: Cek }) {
             <PutusanFormat wajib={r.wajib} saran={r.saran} />
           </div>
         )}
+        <div className="mt-3 empty:hidden"><UkuranBerkas key={cek.id} cek={cek} /></div>
         {cek.galat_ai && <div className="mt-3"><Pesan jenis="peringatan" judul="Pengecekan AI gagal, hasil bot tetap lengkap">{cek.galat_ai}</Pesan></div>}
       </Kartu>
 
