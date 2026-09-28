@@ -1,8 +1,9 @@
 import { ChevronDown, TriangleAlert } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { api, type Peta, type Profil } from "../lib/api";
+import Membaca from "./Membaca";
 import SchemaForm, { BAGIAN_TERBUKA_AWAL, daftarBagian } from "./SchemaForm";
-import { Kartu, Kerangka, Lencana, Pesan, Tombol } from "./ui";
+import { Kartu, Lencana, Pesan, Tombol } from "./ui";
 
 const SEMBUNYI = ["catatan_ekstraksi"];
 
@@ -120,7 +121,7 @@ export default function EditorProfil({ nama, setNama, deskripsi, setDeskripsi, p
         ) : skema ? (
           <SchemaForm skema={skema} nilai={profil} ubah={setProfil} sembunyikan={SEMBUNYI} hanyaBaca={hanyaBaca} buka={buka} setBuka={setBuka} />
         ) : (
-          <div className="space-y-3" role="status" aria-label="Memuat form aturan">{[0, 1, 2].map((i) => <Kerangka key={i} className="h-14" />)}</div>
+          <Kartu className="py-10"><Membaca judul="Memuat form aturan…" /></Kartu>
         )}
         {bawah}
       </div>

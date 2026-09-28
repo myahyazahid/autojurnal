@@ -1,6 +1,7 @@
 import { ArrowLeft, CircleCheck, Info, LoaderCircle, OctagonAlert, ShieldCheck, ShieldX, TriangleAlert, Upload, type LucideIcon } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import Membaca from "./Membaca";
 
 type Varian = "utama" | "biasa" | "bahaya" | "hantu" | "lembut";
 
@@ -64,9 +65,8 @@ export function Putar({ besar, className = "" }: { besar?: boolean; className?: 
 
 export function MemuatHalaman({ teks = "Memuat…" }: { teks?: string }) {
   return (
-    <div role="status" className="flex min-h-[40vh] items-center justify-center gap-3 text-sm text-ink-2">
-      <Putar besar />
-      {teks}
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <Membaca judul={teks} />
     </div>
   );
 }

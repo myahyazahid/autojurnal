@@ -5,6 +5,7 @@ import { api, relatif, tanggal, type Cek, type StatistikDasbor } from "../lib/ap
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 import HasilCek from "../components/HasilCek";
+import Membaca from "../components/Membaca";
 import {
   IkonBerkas, JudulHalaman, Kartu, Kerangka, Lencana, LencanaScope, MemuatHalaman, Pesan, Sakelar, StripAngka, TautanTombol, Tombol,
 } from "../components/ui";
@@ -111,7 +112,7 @@ export function Riwayat() {
             <Pesan jenis="galat" judul="Riwayat tidak bisa dimuat" aksi={<Tombol ukuran="kecil" onClick={muat}>Coba lagi</Tombol>}>{galat}</Pesan>
           </div>
         ) : data === null ? (
-          <div className="space-y-2 p-4 sm:p-5" role="status" aria-label="Memuat riwayat">{[0, 1, 2, 3].map((i) => <Kerangka key={i} className="h-12" />)}</div>
+          <Membaca judul="Memuat riwayat pengecekan…" className="px-4 py-12" />
         ) : tampil.length === 0 ? (
           <div className="flex flex-col items-center px-6 py-14 text-center">
             <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-tinta"><History className="h-6 w-6" aria-hidden /></span>

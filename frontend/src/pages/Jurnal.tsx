@@ -5,8 +5,9 @@ import { api, relatif, type HasilEkstrak, type JurnalRingkas, type Profil, type 
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 import EditorProfil, { PetaTemplate } from "../components/EditorProfil";
+import Membaca from "../components/Membaca";
 import {
-  IkonBerkas, JudulHalaman, Kartu, KepalaKartu, Kerangka, Kosong, Lencana, MemuatHalaman, Pesan, Putar, Sakelar, TautanTombol, Tombol, ZonaUnggah,
+  IkonBerkas, JudulHalaman, Kartu, KepalaKartu, Kosong, Lencana, MemuatHalaman, Pesan, Sakelar, TautanTombol, Tombol, ZonaUnggah,
 } from "../components/ui";
 
 const KEMBALI = { ke: "/jurnal", label: "Profil jurnal" };
@@ -66,9 +67,9 @@ export function DaftarJurnal() {
       {galat ? (
         <Pesan jenis="galat" judul="Daftar jurnal tidak bisa dimuat" aksi={<Tombol ukuran="kecil" onClick={muat}>Coba lagi</Tombol>}>{galat}</Pesan>
       ) : data === null ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Memuat daftar jurnal">
-          {[0, 1, 2].map((i) => <Kerangka key={i} className="h-60" />)}
-        </div>
+        <Kartu className="py-12">
+          <Membaca judul="Memuat daftar jurnal…" />
+        </Kartu>
       ) : data.length === 0 ? (
         <Kosong
           ikon={FileText}
@@ -145,6 +146,16 @@ function OpsiBaca({ status, onBaca, memuat, labelTombol, adaBerkas = true }: {
   const [pakaiAI, setPakaiAI] = useState(false);
   const [panduan, setPanduan] = useState("");
   const idPanduan = useId();
+  if (memuat)
+    return (
+      <Membaca
+        mendatar
+        ukuran="kecil"
+        judul={pakaiAI ? "Membaca template (bot + AI)…" : "Membaca template…"}
+        langkah={["Membaca tata letak halaman", "Mengenali judul, abstrak, dan heading", "Mencatat format tiap elemen",
+          "Mengambil aturan dari kalimat petunjuk", ...(pakaiAI ? ["AI meninjau dan melengkapi aturan"] : [])]}
+      />
+    );
   return (
     <div className="space-y-4">
       <Sakelar
@@ -332,11 +343,7 @@ export function JurnalBaru() {
               ) : (
                 <ZonaUnggah terima=".docx,.dotx" label="Seret template .docx ke sini" sub="atau klik untuk memilih berkas" pilih={(f) => setBerkas(f[0])} />
               )}
-              {memuat ? (
-                <div role="status" className="flex items-center gap-3 text-sm text-ink-2"><Putar /> Membaca template…</div>
-              ) : (
-                <OpsiBaca status={status} onBaca={baca} memuat={memuat} labelTombol="Baca template" adaBerkas={!!berkas} />
-              )}
+              <OpsiBaca status={status} onBaca={baca} memuat={memuat} labelTombol="Baca template" adaBerkas={!!berkas} />
             </div>
           </Kartu>
           <Kartu>

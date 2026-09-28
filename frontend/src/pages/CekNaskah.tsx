@@ -4,8 +4,9 @@ import { Link } from "react-router-dom";
 import { api, relatif, type Cek, type JurnalRingkas, type Status } from "../lib/api";
 import { namaDepan, useAuth } from "../lib/auth";
 import HasilCek from "../components/HasilCek";
+import Membaca from "../components/Membaca";
 import {
-  IkonBerkas, JudulHalaman, Kartu, Kerangka, Kosong, Lencana, LencanaScope, Pesan, Putar, Sakelar, TautanTombol, Tombol, ZonaUnggah,
+  IkonBerkas, JudulHalaman, Kartu, Kerangka, Kosong, Lencana, LencanaScope, Pesan, Sakelar, TautanTombol, Tombol, ZonaUnggah,
 } from "../components/ui";
 
 interface Antrian {
@@ -38,7 +39,7 @@ function TerakhirDiperiksa({ muatUlang }: { muatUlang: number }) {
     api.riwayat().then((d) => { setData(d.slice(0, 5)); setGalat(false); }).catch(() => setGalat(true));
   }, [muatUlang]);
   if (galat) return <p className="text-sm text-ink-2">Riwayat terakhir belum bisa dimuat.</p>;
-  if (data === null) return <div className="space-y-2" aria-hidden>{[0, 1, 2].map((i) => <Kerangka key={i} className="h-14" />)}</div>;
+  if (data === null) return <Membaca ukuran="kecil" mendatar judul="Memuat pengecekan terakhir…" className="py-4" />;
   if (data.length === 0) return null;
   return (
     <section aria-labelledby="judul-terakhir">
@@ -298,12 +299,13 @@ export default function CekNaskah() {
                 {aktif.galat || "Tidak ada keterangan dari server."} Periksa berkasnya lalu tekan Periksa lagi.
               </Pesan>
             ) : aktif?.status === "proses" ? (
-              <Kartu className="flex items-center gap-4 px-6 py-8">
-                <Putar besar />
-                <div role="status" className="min-w-0">
-                  <div className="truncate font-semibold text-ink">Memeriksa {aktif.berkas.name}</div>
-                  <div className="mt-0.5 text-sm text-ink-2">Membaca format, struktur, dan referensi{pakaiAI && aiBisa ? ", lalu menilai substansi dengan AI" : ""}.</div>
-                </div>
+              <Kartu className="px-6 py-10">
+                <Membaca
+                  ukuran="besar"
+                  judul={`Memeriksa ${aktif.berkas.name}`}
+                  sub={`Bot membaca naskah sesuai aturan template${pakaiAI && aiBisa ? ", lalu AI menilai substansinya" : ""}.`}
+                  langkah={pakaiAI && aiBisa ? [...["Membaca tata letak dan format", "Memeriksa struktur dan judul bagian", "Menghitung kata, halaman, dan kata kunci", "Mencocokkan sitasi dengan daftar pustaka", "Memeriksa tabel dan gambar", "Menulis komentar ke naskah"], "AI menilai aturan isi dan Focus & Scope"] : ["Membaca tata letak dan format", "Memeriksa struktur dan judul bagian", "Menghitung kata, halaman, dan kata kunci", "Mencocokkan sitasi dengan daftar pustaka", "Memeriksa tabel dan gambar", "Menulis komentar ke naskah"]}
+                />
               </Kartu>
             ) : (
               <TerakhirDiperiksa muatUlang={putaran} />

@@ -3,7 +3,8 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Reac
 import { useSearchParams } from "react-router-dom";
 import { api, type EntriKomentar, type JurnalRingkas, type KatalogKomentar } from "../lib/api";
 import { useToast } from "../lib/toast";
-import { JudulHalaman, Kartu, KepalaKartu, Kerangka, Kosong, Lencana, Pesan, Sakelar, TautanTombol, Tombol } from "../components/ui";
+import Membaca from "../components/Membaca";
+import { JudulHalaman, Kartu, KepalaKartu, Kosong, Lencana, Pesan, Sakelar, TautanTombol, Tombol } from "../components/ui";
 
 type Saring = "semua" | "diubah" | "mati";
 
@@ -287,10 +288,9 @@ export default function Komentar() {
     return (
       <>
         {judul}
-        <div className="space-y-3" role="status" aria-label="Memuat katalog komentar">
-          <Kerangka className="h-20" />
-          {[0, 1, 2].map((i) => <Kerangka key={i} className="h-40" />)}
-        </div>
+        <Kartu className="py-12">
+          <Membaca judul="Memuat katalog komentar…" />
+        </Kartu>
       </>
     );
   if (!jurnal.length)
@@ -350,7 +350,9 @@ export default function Komentar() {
           {galatJurnal}
         </Pesan>
       ) : !tersimpan ? (
-        <div className="space-y-3" role="status" aria-label="Memuat kalimat komentar">{[0, 1, 2].map((i) => <Kerangka key={i} className="h-40" />)}</div>
+        <Kartu className="py-12">
+          <Membaca judul={`Memuat kalimat komentar ${jurnalAktif?.nama ?? ""}…`} />
+        </Kartu>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-8">
           <nav aria-label="Kelompok komentar" className="lg:sticky lg:top-6">

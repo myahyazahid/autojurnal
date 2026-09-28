@@ -187,3 +187,54 @@ svg.lucide {
     animation: none;
   }
 }
+
+/* ---- animasi "membaca naskah" untuk semua status memuat ----
+   Bingkai dasar = keadaan selesai (dipakai bila pengguna memilih gerak dikurangi); animasi hanya bila gerak diizinkan. */
+.baca .baca-bayang { fill: var(--c-line); }
+.baca .baca-kertas { fill: var(--c-panel); stroke: var(--c-line-2); stroke-width: 1.5; }
+.baca .baca-lipat { fill: var(--c-panel-3); stroke: var(--c-line-2); stroke-width: 1.5; stroke-linejoin: round; }
+.baca .baca-judul { fill: var(--c-isian); }
+.baca .baca-baris { fill: var(--c-line-2); }
+.baca .baca-sorot { fill: var(--c-brand-soft); stroke: var(--c-brand-garis); stroke-width: 1; transform-box: fill-box; transform-origin: left center; }
+.baca .baca-gelombang { fill: none; stroke: var(--c-bahaya); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 60; stroke-dashoffset: 0; }
+.baca .baca-balon { transform-box: fill-box; transform-origin: left bottom; }
+.baca .baca-balon-isi { fill: var(--c-brand); }
+.baca .baca-balon-teks { fill: #fff; opacity: 0.85; }
+.baca .baca-centang { transform-box: fill-box; transform-origin: center; }
+.baca .baca-centang-bulat { fill: var(--c-ok); }
+.baca .baca-centang-garis { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.baca .baca-lensa { transform: translate(118px, 84px); }
+.baca .baca-lensa-kaca { fill: color-mix(in oklab, var(--c-brand) 12%, transparent); stroke: var(--c-brand); stroke-width: 3; }
+.baca .baca-lensa-gagang { stroke: var(--c-brand-tinta); stroke-width: 5; stroke-linecap: round; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .baca .baca-lensa { animation: baca-lensa 6s ease-in-out infinite; }
+  .baca .baca-sorot-1 { animation: baca-sorot-1 6s ease-in-out infinite; }
+  .baca .baca-sorot-2 { animation: baca-sorot-2 6s ease-in-out infinite; }
+  .baca .baca-sorot-3 { animation: baca-sorot-3 6s ease-in-out infinite; }
+  .baca .baca-gelombang { animation: baca-gelombang 6s ease-out infinite; }
+  .baca .baca-balon-1 { animation: baca-balon-1 6s cubic-bezier(0.3, 1.5, 0.5, 1) infinite; }
+  .baca .baca-balon-2 { animation: baca-balon-2 6s cubic-bezier(0.3, 1.5, 0.5, 1) infinite; }
+  .baca .baca-centang { animation: baca-centang 6s cubic-bezier(0.3, 1.5, 0.5, 1) infinite; }
+  .baca-langkah { animation: baca-langkah 0.4s ease-out; }
+}
+
+@keyframes baca-lensa {
+  0% { transform: translate(58px, 60px); opacity: 0; }
+  4% { opacity: 1; }
+  18% { transform: translate(142px, 60px); }
+  24% { transform: translate(58px, 84px); }
+  42% { transform: translate(122px, 84px); }
+  48% { transform: translate(58px, 108px); }
+  66% { transform: translate(142px, 108px); }
+  78% { transform: translate(124px, 132px); opacity: 1; }
+  88%, 100% { transform: translate(124px, 132px); opacity: 0; }
+}
+@keyframes baca-sorot-1 { 0% { transform: scaleX(0); opacity: 1; } 18%, 88% { transform: scaleX(1); opacity: 1; } 96%, 100% { transform: scaleX(1); opacity: 0; } }
+@keyframes baca-sorot-2 { 0%, 24% { transform: scaleX(0); opacity: 1; } 42%, 88% { transform: scaleX(1); opacity: 1; } 96%, 100% { transform: scaleX(1); opacity: 0; } }
+@keyframes baca-sorot-3 { 0%, 48% { transform: scaleX(0); opacity: 1; } 66%, 88% { transform: scaleX(1); opacity: 1; } 96%, 100% { transform: scaleX(1); opacity: 0; } }
+@keyframes baca-gelombang { 0%, 32% { stroke-dashoffset: 60; opacity: 1; } 40%, 88% { stroke-dashoffset: 0; opacity: 1; } 96%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes baca-balon-1 { 0%, 41% { transform: scale(0); opacity: 0; } 46%, 88% { transform: scale(1); opacity: 1; } 96%, 100% { transform: scale(1); opacity: 0; } }
+@keyframes baca-balon-2 { 0%, 65% { transform: scale(0); opacity: 0; } 70%, 88% { transform: scale(1); opacity: 1; } 96%, 100% { transform: scale(1); opacity: 0; } }
+@keyframes baca-centang { 0%, 79% { transform: scale(0); opacity: 0; } 84%, 90% { transform: scale(1); opacity: 1; } 97%, 100% { transform: scale(1); opacity: 0; } }
+@keyframes baca-langkah { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }

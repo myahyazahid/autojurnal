@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api, relatif, type Pengguna as P } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
-import { Avatar, JudulHalaman, Kartu, Kerangka, Lencana, LogoGoogle, Pesan, Sakelar, Tombol } from "../components/ui";
+import Membaca from "../components/Membaca";
+import { Avatar, JudulHalaman, Kartu, Lencana, LogoGoogle, Pesan, Sakelar, Tombol } from "../components/ui";
 
 const kolom = "lg:grid-cols-[minmax(0,2fr)_7rem_9rem_5rem_minmax(0,1fr)]";
 
@@ -54,7 +55,7 @@ export default function Pengguna() {
             <Pesan jenis="galat" judul="Daftar pengguna tidak bisa dimuat" aksi={<Tombol ukuran="kecil" onClick={muat}>Coba lagi</Tombol>}>{galat}</Pesan>
           </div>
         ) : data === null ? (
-          <div className="space-y-2 p-4 sm:p-5" role="status" aria-label="Memuat pengguna">{[0, 1, 2].map((i) => <Kerangka key={i} className="h-12" />)}</div>
+          <Membaca judul="Memuat daftar pengguna…" className="px-4 py-12" />
         ) : tampil.length === 0 ? (
           <div className="flex flex-col items-center px-6 py-14 text-center">
             <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-tinta"><Users className="h-6 w-6" aria-hidden /></span>

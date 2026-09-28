@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
-import { LogoAutoJurnal, Putar } from "./components/ui";
+import Membaca from "./components/Membaca";
+import { LogoAutoJurnal } from "./components/ui";
 import { useAuth } from "./lib/auth";
 import Akun from "./pages/Akun";
 import CekNaskah from "./pages/CekNaskah";
@@ -14,9 +15,9 @@ import { DetailCek, Riwayat } from "./pages/Riwayat";
 
 function LayarMemuat() {
   return (
-    <div role="status" className="flex min-h-screen flex-col items-center justify-center gap-4 text-sm text-ink-2">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6">
       <LogoAutoJurnal ukuran={44} />
-      <span className="flex items-center gap-2"><Putar /> Memuat AutoJurnal…</span>
+      <Membaca judul="Memuat AutoJurnal…" />
     </div>
   );
 }
