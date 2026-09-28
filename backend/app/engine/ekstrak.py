@@ -240,6 +240,7 @@ def ekstrak_template(sumber: str | IO[bytes]) -> tuple[Profil, list[dict]]:
     _aturan_referensi(prof, semua, kalimat_semua, catat)
     _aturan_tabel_gambar(prof, per_peran, kalimat_semua)
     _aturan_lanjut(prof, dm, per_peran, kalimat_semua, catat)
+    _jarak_heading(prof, kalimat_semua)
     _struktur(prof, dm, semua, catat)
     _naratif(prof, dm)
 
@@ -551,6 +552,28 @@ def _aturan_lanjut(prof: Profil, dm: DocModel, per_peran, kalimat: list[str], ca
         catat("Aturan tambahan yang terbaca: " + "; ".join(terbaca) + ".")
 
 
+_ANGKA_KATA = {"tanpa": 0, "nol": 0, "satu": 1, "dua": 2, "tiga": 3, "empat": 4}
+
+
+def _jumlah_baris(teks: str) -> int | None:
+    teks = teks.strip().lower()
+    return int(teks) if teks.isdigit() else _ANGKA_KATA.get(teks)
+
+
+def _jarak_heading(prof: Profil, kalimat: list[str]):
+    """'jarak dua baris kosong antar heading berbeda ... tanpa baris kosong antar sub-heading'."""
+    st = prof.struktur
+    for k in kalimat:
+        kl = k.lower()
+        m = re.search(r"(\d|tanpa|nol|satu|dua|tiga|empat)\s+baris\s+kosong[^.;]{0,40}?antar\s*(?:heading|judul)\s*"
+                      r"(?:yang\s+)?(?:berbeda|beda)", kl)
+        if m:
+            st.baris_kosong_heading_beda = _jumlah_baris(m.group(1))
+        m = re.search(r"(\d|tanpa|nol|satu|dua|tiga)\s+baris\s+kosong[^.;]{0,30}?antar\s*sub[- ]?(?:heading|judul)", kl)
+        if m:
+            st.baris_kosong_subheading = _jumlah_baris(m.group(1))
+
+
 def _struktur(prof: Profil, dm: DocModel, semua: str, catat):
     bagian: list[Bagian] = []
     paras = [p for p in dm.paras if not p.kosong and not p.dalam_tabel]
@@ -579,7 +602,7 @@ def _struktur(prof: Profil, dm: DocModel, semua: str, catat):
 _RX_INSTRUKSI = re.compile(r"\b(berisi|memuat|harus|wajib|sebaiknya|mencakup|menjelaskan|diharapkan|perlu)\b", re.I)
 _RX_FORMAT = re.compile(
     r"font|\bpt\b|spasi|margin|kertas|halaman|heading|tabel|gambar|times new roman|ukuran|sitasi|daftar rujukan|"
-    r"daftar pustaka|referensi|kata kunci|\bkata\b.*\d|diketik|indentasi|poin|justify|kolom|mendeley|zotero",
+    r"daftar pustaka|referensi|kata kunci|\bkata\b.*\d|diketik|indentasi|poin|justify|kolom|mendeley|zotero|baris kosong",
     re.I,
 )
 

@@ -145,7 +145,10 @@ def cek_kebersihan(dm: DocModel, prof: Profil) -> list[Temuan]:
             if baris_kosong:
                 kosong += 1
                 continue
-            if kosong >= 2 and terakhir is not None:
+            # baris kosong sebelum heading yang memang diminta template (mis. 2 antar heading) bukan kesalahan
+            izin = prof.struktur.baris_kosong_heading_beda or 0
+            sebelum_heading = isinstance(b, Para) and b.peran in ("judul_bagian", "sub_judul")
+            if kosong >= 2 and terakhir is not None and not (sebelum_heading and kosong <= izin):
                 out.append(tm("naskah.baris_kosong", para=terakhir.i, kelompok="naskah.baris_kosong", jumlah=kosong))
             kosong = 0
             terakhir = b if isinstance(b, Para) and not b.kosong else (b.paras[-1] if not isinstance(b, Para) and b.paras else terakhir)

@@ -84,7 +84,8 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
         except Exception:
             dokumen.extend(daftar)
             continue
-        doc.add_comment(runs, text="\n".join(baris(t) for t in daftar), author=penulis, initials=inisial)
+        for t in daftar:  # satu komentar per kesalahan
+            doc.add_comment(runs, text=baris(t), author=penulis, initials=inisial)
 
     # --- komentar ringkasan di judul ------------------------------------------
     jangkar = next((p for p in dm.paras if p.peran == "judul" and not p.kosong), None) or next(

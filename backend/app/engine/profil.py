@@ -76,6 +76,12 @@ class Struktur(_Dasar):
     penomoran_judul: Optional[Literal["wajib", "dilarang"]] = Field(
         None, title="Penomoran judul bagian & subjudul", description="wajib: 1., 2.1 ... | dilarang: tanpa nomor"
     )
+    baris_kosong_heading_beda: Optional[int] = Field(
+        None, title="Baris kosong antar heading beda tingkat", description="Mis. 2 antara heading 1 dan heading 2 yang berurutan"
+    )
+    baris_kosong_subheading: Optional[int] = Field(
+        None, title="Baris kosong sebelum subjudul setingkat", description="Mis. 0 antara subjudul 1.2 dan 1.3"
+    )
 
 
 class AturanJudul(_Dasar):

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -25,6 +26,13 @@ def _peta_teks(peta: list[dict], batas: int = 45000) -> str:
         baris.append(s)
     teks = "\n".join(baris)
     return teks[:batas]
+
+
+RX_TATA_LETAK = re.compile(
+    r"baris kosong|blank line|\bspasi\b|spacing|\bfont\b|margin|\bpt\b|indentasi|indent|justify|rata (?:kiri|kanan|tengah)|"
+    r"times new roman|heading level|\bbold\b|\bitalic\b|cetak (?:tebal|miring)|ukuran (?:huruf|kertas)",
+    re.I,
+)
 
 
 def _gabung(dasar: dict, tambahan: dict) -> dict:
@@ -117,7 +125,8 @@ def perbaiki_dengan_ai(klien: KlienAI, prof: Profil, peta: list[dict], panduan: 
     for item in data.get("aturan_naratif") or []:
         try:
             a = AturanNaratif.model_validate(item)
-            if a.aturan.strip():
+            # aturan tata letak (baris kosong, spasi, font, dll.) dicek bot, bukan AI
+            if a.aturan.strip() and not RX_TATA_LETAK.search(a.aturan):
                 naratif.append(a)
         except ValidationError:
             continue

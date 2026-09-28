@@ -7,7 +7,7 @@ from difflib import SequenceMatcher
 
 from . import katalog as KT
 from . import teks as T
-from .docmodel import DocModel, Para, q
+from .docmodel import DocModel, Para, Tabel, q
 from .klasifikasi import CAP_GAMBAR, CAP_TABEL, klasifikasi
 from .profil import FormatElemen, Profil
 from .referensi import RX_KURUNG, RX_SITASI_NUM, cek_referensi, entri_pustaka, sitasi_numerik, sitasi_penulis_tahun
@@ -270,6 +270,46 @@ def cek_struktur(dm: DocModel, prof: Profil) -> list[Temuan]:
                 out.append(tm("struktur.nomor_wajib", para=p.i, kelompok="struktur.nomor"))
             elif st.penomoran_judul == "dilarang" and bernomor:
                 out.append(tm("struktur.nomor_dilarang", para=p.i, kelompok="struktur.nomor"))
+    out.extend(_jarak_heading(dm, prof))
+    return out
+
+
+def _label_baris(n: int) -> str:
+    return "tanpa baris kosong" if n == 0 else f"{n} baris kosong"
+
+
+def _baris_kosong(b) -> bool:
+    return isinstance(b, Para) and b.kosong and not b.ada_gambar and not b.el.xpath(
+        ".//*[local-name()='br'][@*[local-name()='type']='page'] | ./*[local-name()='pPr']/*[local-name()='sectPr']")
+
+
+def _jarak_heading(dm: DocModel, prof: Profil) -> list[Temuan]:
+    """Baris kosong di antara heading: heading beda tingkat yang berurutan, dan sebelum subjudul setingkat.
+    Komentar ditempel di heading yang jaraknya salah."""
+    st, out = prof.struktur, []
+    beda, sub = st.baris_kosong_heading_beda, st.baris_kosong_subheading
+    if beda is None and sub is None:
+        return out
+    sebelumnya: Para | None = None
+    kosong, ada_isi = 0, False
+    for b in dm.blok:
+        if _baris_kosong(b):
+            kosong += 1
+            continue
+        heading = isinstance(b, Para) and b.peran in ("judul_bagian", "sub_judul") and not b.kosong
+        if not heading:
+            kosong, ada_isi = 0, True
+            continue
+        level = b.level or (1 if b.peran == "judul_bagian" else 2)
+        if sebelumnya is not None:
+            level_lalu = sebelumnya.level or (1 if sebelumnya.peran == "judul_bagian" else 2)
+            data = {"aktual": kosong, "judul": T._NOMOR.sub("", b.bersih).strip()[:60],
+                    "sebelumnya": T._NOMOR.sub("", sebelumnya.bersih).strip()[:60]}
+            if not ada_isi and level != level_lalu and beda is not None and kosong != beda:
+                out.append(KT.temuan(prof, "Struktur", "struktur.jarak_heading_beda", para=b.i, harapan=_label_baris(beda), **data))
+            elif ada_isi and level == level_lalu and level >= 2 and sub is not None and kosong != sub:
+                out.append(KT.temuan(prof, "Struktur", "struktur.jarak_subheading", para=b.i, harapan=_label_baris(sub), **data))
+        sebelumnya, kosong, ada_isi = b, 0, False
     return out
 
 
