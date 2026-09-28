@@ -17,7 +17,8 @@ class KlienTiruan(KlienAI):
         u = pesan[-1]["content"]
         if "PROFIL HASIL BACAAN" in u:
             return "```json\n" + json.dumps({
-                "profil": {"judul": {"maks_kata": 20}, "referensi": {"gaya_sitasi": "tidak-valid"}},
+                "profil": {"judul": {"maks_kata": 20}, "referensi": {"gaya_sitasi": "tidak-valid"},
+                           "tabel_gambar": {"posisi_judul_tabel": None}},
                 "aturan_naratif": [{"bagian": "Pendahuluan", "aturan": "Pendahuluan memuat research gap."}],
                 "catatan": ["contoh catatan"],
             }) + "\n```"
@@ -35,6 +36,7 @@ def test_ai_ekstrak_dan_naratif(template_docx, naskah_docx, tmp_path):
     prof2, ubah = perbaiki_dengan_ai(k, prof, peta)
     assert prof2.judul.maks_kata == 20
     assert prof2.referensi.gaya_sitasi == prof.referensi.gaya_sitasi  # usulan tidak valid ditolak
+    assert prof.tabel_gambar.posisi_judul_tabel and prof2.tabel_gambar.posisi_judul_tabel == prof.tabel_gambar.posisi_judul_tabel  # null AI tidak menghapus
     assert [b.judul for b in prof2.struktur.bagian] == [b.judul for b in prof.struktur.bagian]
     assert any("Maksimal kata judul" in u for u in ubah)
     hasil = cek_naskah(str(naskah_docx), prof2, "Uji", tmp_path / "h.docx", lambda dm, p: cek_naratif(k, dm, p))

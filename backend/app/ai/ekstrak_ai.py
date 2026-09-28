@@ -33,6 +33,8 @@ def _gabung(dasar: dict, tambahan: dict) -> dict:
             continue
         if isinstance(v, dict) and isinstance(dasar[k], dict):
             _gabung(dasar[k], v)
+        elif v is None and dasar[k] is not None:
+            continue  # AI boleh mengisi atau mengoreksi, tapi tidak mengosongkan nilai yang dibaca bot dari template
         else:
             dasar[k] = v
     return dasar
