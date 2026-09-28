@@ -5,7 +5,7 @@ import { api, relatif, type HasilEkstrak, type JurnalRingkas, type Profil, type 
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 import EditorProfil, { PetaTemplate } from "../components/EditorProfil";
-import Membaca from "../components/Membaca";
+import Membaca, { minimal } from "../components/Membaca";
 import {
   IkonBerkas, JudulHalaman, Kartu, KepalaKartu, Kosong, Lencana, MemuatHalaman, Pesan, Sakelar, TautanTombol, Tombol, ZonaUnggah,
 } from "../components/ui";
@@ -283,7 +283,7 @@ export function JurnalBaru() {
     if (!berkas) return;
     setMemuat(true);
     try {
-      const h = await api.ekstrak(berkas, pakaiAI, panduan);
+      const h = await minimal(api.ekstrak(berkas, pakaiAI, panduan));
       setHasil(h);
       setProfil(h.profil);
       if (!nama) setNama(berkas.name.replace(/\.docx$/i, "").replace(/template/i, "").replace(/[_-]+/g, " ").trim() || "Jurnal baru");
@@ -412,7 +412,7 @@ export function EditJurnal() {
     if (!confirm("Isi editor akan diganti hasil pembacaan ulang template (belum tersimpan sampai Anda menekan Simpan). Lanjutkan?")) return;
     setMemuat(true);
     try {
-      const h = await api.ekstrakUlang(jid, pakaiAI, panduan);
+      const h = await minimal(api.ekstrakUlang(jid, pakaiAI, panduan));
       setHasil(h);
       setProfil({ ...h.profil, scope: profil.scope }); // scope diisi manual, jangan ditimpa
       toast("info", "Template dibaca ulang", "Tinjau lalu tekan Simpan.");

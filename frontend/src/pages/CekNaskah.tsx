@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { api, relatif, type Cek, type JurnalRingkas, type Status } from "../lib/api";
 import { namaDepan, useAuth } from "../lib/auth";
 import HasilCek from "../components/HasilCek";
-import Membaca from "../components/Membaca";
+import Membaca, { minimal } from "../components/Membaca";
 import {
   IkonBerkas, JudulHalaman, Kartu, Kerangka, Kosong, Lencana, LencanaScope, Pesan, Sakelar, TautanTombol, Tombol, ZonaUnggah,
 } from "../components/ui";
@@ -129,7 +129,7 @@ export default function CekNaskah() {
         requestAnimationFrame(() => refHasil.current?.scrollIntoView({ behavior: halus ? "smooth" : "auto", block: "start" }));
       }
       try {
-        const hasil = await api.cek(daftar[i].berkas, Number(pilihan), pakaiAI && aiBisa);
+        const hasil = await minimal(api.cek(daftar[i].berkas, Number(pilihan), pakaiAI && aiBisa));
         setAntrian((q) => q.map((a, j) => (j === i ? { ...a, status: hasil.status === "gagal" ? "gagal" : "selesai", hasil, galat: hasil.pesan_galat } : a)));
       } catch (e) {
         setAntrian((q) => q.map((a, j) => (j === i ? { ...a, status: "gagal", galat: (e as Error).message } : a)));

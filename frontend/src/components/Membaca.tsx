@@ -53,7 +53,13 @@ export function AnimasiBaca({ ukuran = "sedang" }: { ukuran?: Ukuran }) {
   );
 }
 
-const reduksi = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+export const reduksi = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Tunggu minimal `ms` agar animasi memuat sempat terlihat; langsung selesai bila pengguna memilih gerak dikurangi. */
+export function minimal<T>(janji: Promise<T>, ms = 2400): Promise<T> {
+  if (reduksi()) return janji;
+  return Promise.all([janji, new Promise((r) => window.setTimeout(r, ms))]).then(([h]) => h);
+}
 
 /** Status memuat dengan animasi membaca naskah. `langkah` (opsional) ditampilkan bergantian di bawah judul. */
 export default function Membaca({ judul, sub, langkah, ukuran = "sedang", mendatar, className = "" }: {
@@ -62,7 +68,7 @@ export default function Membaca({ judul, sub, langkah, ukuran = "sedang", mendat
   const [ke, setKe] = useState(0);
   useEffect(() => {
     if (!langkah || langkah.length < 2 || reduksi()) return;
-    const t = window.setInterval(() => setKe((k) => (k + 1) % langkah.length), 2400);
+    const t = window.setInterval(() => setKe((k) => (k + 1) % langkah.length), 1500);
     return () => window.clearInterval(t);
   }, [langkah]);
   return (
