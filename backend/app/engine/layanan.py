@@ -8,6 +8,7 @@ from typing import IO, Callable
 
 from .anotasi import tulis_komentar
 from .docmodel import DocModel
+from .katalog import aktif
 from .periksa import periksa
 from .profil import Profil
 from .temuan import Temuan
@@ -45,6 +46,8 @@ def cek_naskah(
             except Exception as e:
                 scope = {"galat": f"Penilaian scope gagal: {e}"}
 
+    # kalimat yang dimatikan di menu Komentar tidak dilaporkan sama sekali
+    temuan = [t for t in temuan if aktif(prof, t.kode)]
     daftar = tulis_komentar(dm, temuan, prof, nama_jurnal, penulis=penulis, pemeriksa=pemeriksa, scope=scope)
     dm.doc.save(str(keluaran))
     # "masalah" = jenis masalah unik (kemunculan berulang dihitung satu), "kemunculan" = semua temuan

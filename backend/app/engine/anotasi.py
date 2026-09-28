@@ -8,7 +8,7 @@ from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 
 from .docmodel import DocModel, Para, q
-from .katalog import teks
+from .katalog import aktif, teks
 from .profil import Profil
 from .temuan import Temuan
 
@@ -70,8 +70,9 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
         (dokumen if t.para is None else per_para[t.para]).append(t)
 
     def baris(t: Temuan) -> str:
-        s = f"{_awalan(kustom, t)} {t.pesan}" if ko.label_kategori else t.pesan
-        if id(t) in tambahan:
+        label = "label.ai" if t.sumber == "ai" else ("label.wajib" if t.tingkat == "wajib" else "label.saran")
+        s = f"{_awalan(kustom, t)} {t.pesan}" if ko.label_kategori and aktif(prof, label) else t.pesan
+        if id(t) in tambahan and aktif(prof, "ringkasan.masalah_sama"):
             s += " " + teks(kustom, "ringkasan.masalah_sama", jumlah=tambahan[id(t)])
         return s
 
@@ -92,24 +93,32 @@ def tulis_komentar(dm: DocModel, temuan: list[Temuan], prof: Profil, nama_jurnal
         unik: dict[str, Temuan] = {}
         for i, t in enumerate(masuk):
             unik.setdefault(t.kelompok or f"#{i}", t)
-        isi = [teks(kustom, "ringkasan.judul", jurnal=nama_jurnal)]
+        def tambah(kode: str, **data):
+            if aktif(prof, kode):
+                isi.append(teks(kustom, kode, **data).strip())
+
+        isi: list[str] = []
+        tambah("ringkasan.judul", jurnal=nama_jurnal)
         if scope and scope.get("keputusan"):
             kode = "ringkasan.scope_sesuai" if scope["keputusan"] == "terima" else "ringkasan.scope_tidak_sesuai"
             skor = f"{scope['skor']}/100" if scope.get("skor") is not None else "tanpa skor"
-            isi.append(teks(kustom, kode, skor=skor, alasan=scope.get("alasan") or "").strip())
+            tambah(kode, skor=skor, alasan=scope.get("alasan") or "")
         if unik:
-            isi.append(teks(kustom, "ringkasan.jumlah", jumlah=len(unik), tempat=len(masuk)))
+            tambah("ringkasan.jumlah", jumlah=len(unik), tempat=len(masuk))
         else:
-            isi.append(teks(kustom, "ringkasan.nihil"))
+            tambah("ringkasan.nihil")
         if pemeriksa:
-            isi.append(teks(kustom, "ringkasan.pemeriksa", pemeriksa=pemeriksa))
+            tambah("ringkasan.pemeriksa", pemeriksa=pemeriksa)
         if dokumen:
             isi.append("")
             isi.extend(f"• {baris(t)}" for t in dokumen)
-        if ko.label_kategori:
+        if ko.label_kategori and aktif(prof, "label.keterangan"):
             isi.append("")
             isi.append(teks(kustom, "label.keterangan"))
-        doc.add_comment(_runs_jangkar(dm, jangkar), text="\n".join(isi), author=penulis, initials=inisial)
+        while isi and not isi[0]:
+            isi.pop(0)
+        if isi:
+            doc.add_comment(_runs_jangkar(dm, jangkar), text="\n".join(isi), author=penulis, initials=inisial)
 
     hasil = []
     for t in temuan:

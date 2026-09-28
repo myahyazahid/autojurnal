@@ -40,7 +40,7 @@ class FormatPerElemen(_Dasar):
     abstrak_inggris: FormatElemen = Field(default_factory=FormatElemen, title="Abstract (Inggris)")
     kata_kunci: FormatElemen = Field(default_factory=FormatElemen, title="Kata kunci / keywords")
     judul_bagian: FormatElemen = Field(default_factory=FormatElemen, title="Judul bagian (heading 1)")
-    sub_judul: FormatElemen = Field(default_factory=FormatElemen, title="Subjudul (heading 2+)")
+    sub_judul: FormatElemen = Field(default_factory=FormatElemen, title="Subjudul (heading 2)")
     teks_isi: FormatElemen = Field(default_factory=FormatElemen, title="Teks isi (paragraf)")
     judul_tabel: FormatElemen = Field(default_factory=FormatElemen, title="Judul tabel")
     isi_tabel: FormatElemen = Field(default_factory=FormatElemen, title="Isi tabel")
@@ -228,9 +228,11 @@ class Profil(_Dasar):
     catatan_ekstraksi: list[str] = Field(default_factory=list, title="Catatan hasil pembacaan template")
     # kalimat komentar kustom {kode katalog: kalimat}; diatur di menu Komentar, bukan di form profil
     teks_komentar: dict[str, str] = Field(default_factory=dict, title="Kalimat komentar kustom")
+    komentar_mati: list[str] = Field(default_factory=list, title="Kode komentar yang dinonaktifkan")
 
 
 def skema_json() -> dict:
     skema = Profil.model_json_schema()
     skema["properties"].pop("teks_komentar", None)
+    skema["properties"].pop("komentar_mati", None)
     return skema

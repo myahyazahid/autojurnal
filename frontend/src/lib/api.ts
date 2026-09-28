@@ -158,6 +158,12 @@ export interface EntriKomentar {
   variabel: VariabelKomentar[];
 }
 
+export interface KomentarJurnal {
+  jurnal_id: number;
+  teks: Record<string, string>;
+  mati: string[]; // kode kalimat yang dinonaktifkan
+}
+
 export interface KatalogKomentar {
   grup: string[];
   entri: EntriKomentar[];
@@ -222,9 +228,9 @@ export const api = {
     minta<JurnalRingkas>(`/api/jurnal/${id}`, json("PUT", data)),
   hapusJurnal: (id: number) => minta<{ ok: boolean }>(`/api/jurnal/${id}`, { method: "DELETE" }),
   katalogKomentar: () => minta<KatalogKomentar>("/api/komentar/katalog"),
-  komentarJurnal: (id: number) => minta<{ jurnal_id: number; teks: Record<string, string> }>(`/api/jurnal/${id}/komentar`),
-  simpanKomentar: (id: number, teks: Record<string, string>) =>
-    minta<{ jurnal_id: number; teks: Record<string, string> }>(`/api/jurnal/${id}/komentar`, json("PUT", { teks })),
+  komentarJurnal: (id: number) => minta<KomentarJurnal>(`/api/jurnal/${id}/komentar`),
+  simpanKomentar: (id: number, teks: Record<string, string>, mati: string[]) =>
+    minta<KomentarJurnal>(`/api/jurnal/${id}/komentar`, json("PUT", { teks, mati })),
   imporJurnal: (berkas: File) => minta<JurnalRingkas>("/api/jurnal/impor", { method: "POST", body: form({ berkas }) }),
 
   cek: (naskah: File, jurnal_id: number, pakai_ai: boolean) =>

@@ -42,7 +42,7 @@ def _ratakan(model: BaseModel, awalan: tuple[str, ...] = ()) -> dict[tuple[str, 
     """{jalur: (judul yang mudah dibaca, nilai)} untuk semua nilai skalar."""
     hasil: dict = {}
     for nama, info in type(model).model_fields.items():
-        if nama in ("catatan_ekstraksi", "aturan_naratif", "teks_komentar"):
+        if nama in ("catatan_ekstraksi", "aturan_naratif", "teks_komentar", "komentar_mati"):
             continue
         v = getattr(model, nama)
         judul = awalan + ((info.title or nama),)
@@ -64,7 +64,7 @@ def _tampil(v: Any) -> str:
 
 def perbaiki_dengan_ai(klien: KlienAI, prof: Profil, peta: list[dict], panduan: str = "") -> tuple[Profil, list[str]]:
     judul_bagian = [b.judul for b in prof.struktur.bagian]
-    dasar = prof.model_dump(exclude={"catatan_ekstraksi", "aturan_naratif", "scope", "teks_komentar"})  # diisi manual
+    dasar = prof.model_dump(exclude={"catatan_ekstraksi", "aturan_naratif", "scope", "teks_komentar", "komentar_mati"})  # diisi manual
     dasar_tanpa_bagian = json.loads(json.dumps(dasar))
     dasar_tanpa_bagian["struktur"].pop("bagian", None)
     pesan_user = (
@@ -122,6 +122,7 @@ def perbaiki_dengan_ai(klien: KlienAI, prof: Profil, peta: list[dict], panduan: 
     hasil.aturan_naratif = naratif[:12] or prof.aturan_naratif
     hasil.scope = prof.scope
     hasil.teks_komentar = prof.teks_komentar
+    hasil.komentar_mati = prof.komentar_mati
 
     lama, kini = _ratakan(prof), _ratakan(hasil)
     ubah = [f"AI mengubah {kini[j][0]}: {_tampil(lama[j][1])} → {_tampil(kini[j][1])}." for j in kini if j in lama and lama[j][1] != kini[j][1]]

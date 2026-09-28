@@ -236,7 +236,8 @@ def ubah_jurnal(jid: int, masuk: JurnalMasuk, _: Pengguna = Admin_, s: Session =
         raise HTTPException(404, "Jurnal tidak ditemukan.")
     j.nama, j.deskripsi = masuk.nama.strip() or j.nama, masuk.deskripsi
     # kalimat komentar diatur lewat menu Komentar; kiriman form profil tidak menimpanya
-    masuk.profil.teks_komentar = Profil.model_validate_json(j.profil_json).teks_komentar
+    lama = Profil.model_validate_json(j.profil_json)
+    masuk.profil.teks_komentar, masuk.profil.komentar_mati = lama.teks_komentar, lama.komentar_mati
     j.profil_json, j.diubah = masuk.profil.model_dump_json(), sekarang()
     s.add(j)
     s.commit()
@@ -250,6 +251,7 @@ def ubah_jurnal(jid: int, masuk: JurnalMasuk, _: Pengguna = Admin_, s: Session =
 
 class KomentarMasuk(BaseModel):
     teks: dict[str, str]
+    mati: list[str] = []
 
 
 @app.get("/api/komentar/katalog")
@@ -262,7 +264,8 @@ def komentar_jurnal(jid: int, _: Pengguna = Admin_, s: Session = Depends(sesi)):
     j = s.get(Jurnal, jid)
     if not j:
         raise HTTPException(404, "Jurnal tidak ditemukan.")
-    return {"jurnal_id": j.id, "teks": Profil.model_validate_json(j.profil_json).teks_komentar}
+    prof = Profil.model_validate_json(j.profil_json)
+    return {"jurnal_id": j.id, "teks": prof.teks_komentar, "mati": prof.komentar_mati}
 
 
 @app.put("/api/jurnal/{jid}/komentar")
@@ -273,12 +276,16 @@ def simpan_komentar(jid: int, m: KomentarMasuk, _: Pengguna = Admin_, s: Session
     sah, galat = katalog.bersihkan(m.teks)
     if galat:
         raise HTTPException(422, " ".join(galat[:3]))
+    asing = [k for k in m.mati if k not in katalog.INDEKS]
+    if asing:
+        raise HTTPException(422, f"Kode komentar tidak dikenal: {', '.join(asing[:3])}.")
     prof = Profil.model_validate_json(j.profil_json)
     prof.teks_komentar = sah
+    prof.komentar_mati = sorted(set(m.mati))
     j.profil_json, j.diubah = prof.model_dump_json(), sekarang()
     s.add(j)
     s.commit()
-    return {"jurnal_id": j.id, "teks": sah}
+    return {"jurnal_id": j.id, "teks": sah, "mati": prof.komentar_mati}
 
 
 @app.delete("/api/jurnal/{jid}")
@@ -312,6 +319,7 @@ async def impor_jurnal(berkas: UploadFile = File(...), u: Pengguna = Admin_, s: 
     except (ValueError, ValidationError, AttributeError) as e:
         raise HTTPException(400, f"Berkas profil tidak valid: {e}")
     prof.teks_komentar = katalog.bersihkan(prof.teks_komentar)[0]
+    prof.komentar_mati = [k for k in prof.komentar_mati if k in katalog.INDEKS]
     return _buat_jurnal(JurnalMasuk(nama=data.get("nama") or Path(berkas.filename or "Impor").stem,
                                     deskripsi=data.get("deskripsi", ""), profil=prof), u, s)
 

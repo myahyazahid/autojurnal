@@ -128,5 +128,28 @@ def test_api_menu_komentar(template_docx):
 
         # pengguna biasa tidak boleh membuka atau mengubah katalog
         penulis.post("/api/auth/daftar", json={"nama": "Sari", "email": "sari@gmail.com", "sandi": "rahasia123"})
+        r = admin.put(f"/api/jurnal/{j['id']}/komentar", json={"teks": {}, "mati": ["naskah.spasi_ganda"]})
+        assert r.json()["mati"] == ["naskah.spasi_ganda"]
+        assert admin.put(f"/api/jurnal/{j['id']}/komentar", json={"teks": {}, "mati": ["tidak.ada"]}).status_code == 422
+        admin.put(f"/api/jurnal/{j['id']}", json={"nama": "Uji Komentar", "profil": e["profil"]})
+        assert admin.get(f"/api/jurnal/{j['id']}/komentar").json()["mati"] == ["naskah.spasi_ganda"]
         assert penulis.get("/api/komentar/katalog").status_code == 403
         assert penulis.put(f"/api/jurnal/{j['id']}/komentar", json={"teks": {}}).status_code == 403
+
+
+def test_kalimat_dimatikan_dan_halaman_di_akhir(template_docx, naskah_docx, tmp_path, monkeypatch):
+    from app.engine import docmodel
+
+    prof, _ = ekstrak_template(str(template_docx))
+    prof.naskah.maks_halaman = 1
+    monkeypatch.setattr(docmodel.DocModel, "_baca_halaman", staticmethod(lambda sumber: 3))
+    prof.komentar_mati = ["judul.jumlah_kata", "ringkasan.judul"]
+    keluar = tmp_path / "mati.docx"
+    hasil = cek_naskah(str(naskah_docx), prof, "Jurnal Uji", keluar)
+    kode = {t["kode"] for t in hasil["temuan"]}
+    assert "judul.jumlah_kata" not in kode
+    semua = " | ".join(k.text for k in docx.Document(str(keluar)).comments)
+    assert "Judul terdiri atas" not in semua and "Hasil cek otomatis" not in semua
+    halaman = next(t for t in hasil["temuan"] if t["kode"] == "naskah.halaman")
+    dm = docmodel.DocModel(str(naskah_docx))
+    assert halaman["para"] == max(p.i for p in dm.paras if not p.kosong)

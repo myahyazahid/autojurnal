@@ -494,7 +494,9 @@ def cek_naskah(dm: DocModel, prof: Profil) -> list[Temuan]:
     if dm.halaman and (an.min_halaman or an.maks_halaman):
         batas = _batas(dm.halaman, an.min_halaman, an.maks_halaman, "halaman")
         if batas:
-            out.append(tm("naskah.halaman", **batas))
+            # komentar ditempel di paragraf terakhir supaya muncul di halaman terakhir naskah
+            akhir = next((p.i for p in reversed(dm.paras) if not p.kosong), None)
+            out.append(tm("naskah.halaman", para=akhir, **batas))
     if an.kata_terlarang:
         pola = re.compile(r"\b(" + "|".join(re.escape(k) for k in an.kata_terlarang if k.strip()) + r")\b", re.I)
         for p in dm.paras:

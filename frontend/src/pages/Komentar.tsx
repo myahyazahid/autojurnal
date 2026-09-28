@@ -3,7 +3,9 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Reac
 import { useSearchParams } from "react-router-dom";
 import { api, type EntriKomentar, type JurnalRingkas, type KatalogKomentar } from "../lib/api";
 import { useToast } from "../lib/toast";
-import { JudulHalaman, Kartu, KepalaKartu, Kerangka, Kosong, Lencana, Pesan, TautanTombol, Tombol } from "../components/ui";
+import { JudulHalaman, Kartu, KepalaKartu, Kerangka, Kosong, Lencana, Pesan, Sakelar, TautanTombol, Tombol } from "../components/ui";
+
+type Saring = "semua" | "diubah" | "mati";
 
 /* Sama dengan idpattern string.Template di backend: $nama atau ${nama}, nama tidak diawali angka. $$ = tanda $ biasa. */
 const RX_VAR = /\$(?:\{([_a-zA-Z]\w*)\}|([_a-zA-Z]\w*))/g;
@@ -39,8 +41,9 @@ function Pratinjau({ e, teks }: { e: EntriKomentar; teks: string }) {
   return <>{isi}</>;
 }
 
-function BarisKomentar({ e, nilai, asli, ubah, maks }: {
+function BarisKomentar({ e, nilai, asli, ubah, maks, aktif, aktifAsli, setAktif }: {
   e: EntriKomentar; nilai: string; asli: string; ubah: (v: string) => void; maks: number;
+  aktif: boolean; aktifAsli: boolean; setAktif: (v: boolean) => void;
 }) {
   const id = useId();
   const ta = useRef<HTMLTextAreaElement>(null);
@@ -48,7 +51,7 @@ function BarisKomentar({ e, nilai, asli, ubah, maks }: {
   const kursor = useRef<number | null>(null);
   const galat = galatKalimat(e, nilai, maks);
   const diubah = nilai.trim() !== e.bawaan;
-  const belumDisimpan = nilai !== asli;
+  const belumDisimpan = nilai !== asli || aktif !== aktifAsli;
 
   function sisip(nama: string) {
     const el = ta.current;
@@ -73,14 +76,19 @@ function BarisKomentar({ e, nilai, asli, ubah, maks }: {
   }, [nilai]);
 
   return (
-    <div className="px-4 py-4 sm:px-5">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <label htmlFor={id} className="text-sm font-semibold text-ink">{e.judul}</label>
-        {diubah && <Lencana jenis="ai">Diubah</Lencana>}
-        {e.tingkat === "saran" && <Lencana jenis="saran">Saran</Lencana>}
-        {belumDisimpan && <span className="text-xs font-medium text-waspada">Belum disimpan</span>}
-        <code className="text-xs break-all text-ink-3 sm:ml-auto">{e.kode}</code>
+    <div className={`px-4 py-4 sm:px-5 ${aktif ? "" : "bg-panel-2"}`}>
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <label htmlFor={id} className={`text-sm font-semibold ${aktif ? "text-ink" : "text-ink-2"}`}>{e.judul}</label>
+          {!aktif && <Lencana>Nonaktif</Lencana>}
+          {diubah && <Lencana jenis="ai">Diubah</Lencana>}
+          {e.tingkat === "saran" && <Lencana jenis="saran">Saran</Lencana>}
+          {belumDisimpan && <span className="text-xs font-medium text-waspada">Belum disimpan</span>}
+          <code className="w-full text-xs break-all text-ink-3">{e.kode}</code>
+        </div>
+        <Sakelar nyala={aktif} ubah={setAktif} label={aktif ? "Aktif" : "Nonaktif"} labelAria={`Aktifkan komentar ${e.judul}`} />
       </div>
+      {!aktif && <p className="mt-2 text-xs text-ink-2">Temuan ini tidak dilaporkan di hasil cek maupun di naskah Word untuk jurnal ini.</p>}
       <textarea
         ref={ta}
         id={id}
@@ -90,7 +98,7 @@ function BarisKomentar({ e, nilai, asli, ubah, maks }: {
         onFocus={() => (pernahFokus.current = true)}
         aria-invalid={galat ? true : undefined}
         aria-describedby={`${id}-contoh${galat ? ` ${id}-galat` : ""}`}
-        className={`input mt-2 resize-y [field-sizing:content] ${galat ? "border-bahaya hover:border-bahaya" : ""}`}
+        className={`input mt-2 resize-y [field-sizing:content] ${galat ? "border-bahaya hover:border-bahaya" : ""} ${aktif ? "" : "text-ink-2"}`}
       />
       {galat && <p id={`${id}-galat`} className="mt-1.5 text-xs font-medium text-bahaya">{galat}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -137,10 +145,12 @@ export default function Komentar() {
   const [galatAwal, setGalatAwal] = useState("");
   const [tersimpan, setTersimpan] = useState<Record<string, string> | null>(null);
   const [draf, setDraf] = useState<Record<string, string>>({});
+  const [matiTersimpan, setMatiTersimpan] = useState<Set<string>>(new Set());
+  const [matiDraf, setMatiDraf] = useState<Set<string>>(new Set());
   const [galatJurnal, setGalatJurnal] = useState("");
   const [menyimpan, setMenyimpan] = useState(false);
   const [cari, setCari] = useState("");
-  const [hanyaDiubah, setHanyaDiubah] = useState(false);
+  const [saring, setSaring] = useState<Saring>("semua");
   const [muatUlang, setMuatUlang] = useState(0);
   const idJurnal = useId();
   const idCari = useId();
@@ -170,6 +180,8 @@ export default function Komentar() {
         if (batal) return;
         setTersimpan(d.teks);
         setDraf(Object.fromEntries(katalog.entri.map((e) => [e.kode, d.teks[e.kode] ?? e.bawaan])));
+        setMatiTersimpan(new Set(d.mati));
+        setMatiDraf(new Set(d.mati));
       })
       .catch((e) => !batal && setGalatJurnal(e.message));
     return () => {
@@ -179,7 +191,8 @@ export default function Komentar() {
 
   const asli = (e: EntriKomentar) => tersimpan?.[e.kode] ?? e.bawaan;
   const entri = katalog?.entri ?? [];
-  const berubah = tersimpan ? entri.filter((e) => draf[e.kode] !== asli(e)) : [];
+  const berubah = tersimpan ? entri.filter((e) => draf[e.kode] !== asli(e) || matiDraf.has(e.kode) !== matiTersimpan.has(e.kode)) : [];
+  const jumlahMati = entri.filter((e) => matiDraf.has(e.kode)).length;
   const bergalat = tersimpan ? entri.filter((e) => galatKalimat(e, draf[e.kode] ?? "", katalog!.maks_panjang)) : [];
   const jumlahDiubah = tersimpan ? entri.filter((e) => (draf[e.kode] ?? "").trim() !== e.bawaan).length : 0;
 
@@ -201,13 +214,15 @@ export default function Komentar() {
           if (e.grup !== g) return false;
           // cocokkan dengan kalimat tersimpan, bukan yang sedang diketik, agar baris tidak hilang saat disunting
           const simpanan = tersimpan?.[e.kode] ?? e.bawaan;
-          if (hanyaDiubah && (draf[e.kode] ?? e.bawaan).trim() === e.bawaan && simpanan === e.bawaan) return false;
+          if (saring === "diubah" && (draf[e.kode] ?? e.bawaan).trim() === e.bawaan && simpanan === e.bawaan) return false;
+          // baris yang baru dinyalakan tetap tampil sampai disimpan, agar tidak hilang saat diklik
+          if (saring === "mati" && !matiDraf.has(e.kode) && !matiTersimpan.has(e.kode)) return false;
           const bahan = `${e.judul} ${e.kode} ${e.bawaan} ${simpanan}`.toLowerCase();
           return kata.every((k) => bahan.includes(k));
         }),
       }))
       .filter((g) => g.semua.length > 0);
-  }, [katalog, tersimpan, draf, cari, hanyaDiubah]);
+  }, [katalog, tersimpan, draf, cari, saring, matiDraf, matiTersimpan]);
   const jumlahTampil = perGrup.reduce((n, g) => n + g.tampil.length, 0);
 
   function pilihJurnal(id: number) {
@@ -222,6 +237,16 @@ export default function Komentar() {
 
   function batal() {
     setDraf(Object.fromEntries(entri.map((e) => [e.kode, asli(e)])));
+    setMatiDraf(new Set(matiTersimpan));
+  }
+
+  function setAktif(kode: string, aktif: boolean) {
+    setMatiDraf((m) => {
+      const baru = new Set(m);
+      if (aktif) baru.delete(kode);
+      else baru.add(kode);
+      return baru;
+    });
   }
 
   async function simpan() {
@@ -231,9 +256,11 @@ export default function Komentar() {
       const kirim = Object.fromEntries(
         entri.filter((e) => draf[e.kode].trim() !== e.bawaan).map((e) => [e.kode, draf[e.kode].trim()]),
       );
-      const d = await api.simpanKomentar(jid, kirim);
+      const d = await api.simpanKomentar(jid, kirim, [...matiDraf]);
       setTersimpan(d.teks);
       setDraf(Object.fromEntries(entri.map((e) => [e.kode, d.teks[e.kode] ?? e.bawaan])));
+      setMatiTersimpan(new Set(d.mati));
+      setMatiDraf(new Set(d.mati));
       toast("sukses", "Kalimat komentar tersimpan", `Berlaku untuk pengecekan berikutnya di ${jurnalAktif?.nama}.`);
     } catch (e) {
       toast("galat", "Gagal menyimpan", (e as Error).message);
@@ -245,7 +272,7 @@ export default function Komentar() {
   const judul = (
     <JudulHalaman
       judul="Komentar"
-      sub={<>Kalimat yang ditulis ke naskah Word dan tampil di hasil cek. Ubah kata-katanya per profil jurnal. Bagian berawalan <code className="font-semibold text-ink">$</code> diisi otomatis saat pengecekan, misalnya <code className="font-semibold text-ink">$jumlah</code> menjadi 18.</>}
+      sub={<>Kalimat yang ditulis ke naskah Word dan tampil di hasil cek. Ubah kata-katanya atau matikan yang tidak perlu, per profil jurnal. Bagian berawalan <code className="font-semibold text-ink">$</code> diisi otomatis saat pengecekan, misalnya <code className="font-semibold text-ink">$jumlah</code> menjadi 18.</>}
     />
   );
 
@@ -297,15 +324,15 @@ export default function Komentar() {
               <input id={idCari} type="search" className="input pl-9" value={cari} onChange={(e) => setCari(e.target.value)} placeholder="mis. judul, margin, sitasi" />
             </div>
           </div>
-          <div role="group" aria-label="Tampilkan" className="grid grid-cols-2 gap-1 rounded-lg bg-panel-3 p-1">
-            {([[false, `Semua (${entri.length})`], [true, `Diubah (${jumlahDiubah})`]] as const).map(([nilai, label]) => (
+          <div role="group" aria-label="Tampilkan" className="grid grid-cols-3 gap-1 rounded-lg bg-panel-3 p-1">
+            {([["semua", `Semua (${entri.length})`], ["diubah", `Diubah (${jumlahDiubah})`], ["mati", `Nonaktif (${jumlahMati})`]] as const).map(([nilai, label]) => (
               <button
-                key={label}
+                key={nilai}
                 type="button"
-                aria-pressed={hanyaDiubah === nilai}
-                onClick={() => setHanyaDiubah(nilai)}
+                aria-pressed={saring === nilai}
+                onClick={() => setSaring(nilai)}
                 className={`ketuk rounded-md px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                  hanyaDiubah === nilai ? "bg-panel text-ink shadow-[0_1px_2px_rgba(15,23,41,0.12)]" : "text-ink-2 hover:text-ink"
+                  saring === nilai ? "bg-panel text-ink shadow-[0_1px_2px_rgba(15,23,41,0.12)]" : "text-ink-2 hover:text-ink"
                 }`}
               >
                 {label}
@@ -353,9 +380,9 @@ export default function Komentar() {
               <Kosong
                 ringkas
                 ikon={MessageSquareText}
-                judul={hanyaDiubah && !cari ? "Belum ada kalimat yang diubah" : "Tidak ada kalimat yang cocok"}
-                sub={hanyaDiubah && !cari ? `Semua komentar ${jurnalAktif?.nama} masih memakai kalimat bawaan.` : `Tidak ada kalimat yang memuat “${cari}”.`}
-                aksi={<Tombol onClick={() => { setCari(""); setHanyaDiubah(false); }}>Tampilkan semua kalimat</Tombol>}
+                judul={saring === "diubah" && !cari ? "Belum ada kalimat yang diubah" : saring === "mati" && !cari ? "Semua komentar aktif" : "Tidak ada kalimat yang cocok"}
+                sub={saring === "diubah" && !cari ? `Semua komentar ${jurnalAktif?.nama} masih memakai kalimat bawaan.` : saring === "mati" && !cari ? `Belum ada komentar yang dimatikan untuk ${jurnalAktif?.nama}.` : `Tidak ada kalimat yang memuat “${cari}”.`}
+                aksi={<Tombol onClick={() => { setCari(""); setSaring("semua"); }}>Tampilkan semua kalimat</Tombol>}
               />
             ) : (
               perGrup.filter((g) => g.tampil.length).map((g) => (
@@ -372,6 +399,9 @@ export default function Komentar() {
                         asli={asli(e)}
                         maks={katalog.maks_panjang}
                         ubah={(v) => setDraf((d) => ({ ...d, [e.kode]: v }))}
+                        aktif={!matiDraf.has(e.kode)}
+                        aktifAsli={!matiTersimpan.has(e.kode)}
+                        setAktif={(v) => setAktif(e.kode, v)}
                       />
                     ))}
                   </div>

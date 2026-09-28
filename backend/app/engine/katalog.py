@@ -375,6 +375,11 @@ def teks(kustom: dict[str, str] | None, kode: str, **data) -> str:
     return Template(templat).safe_substitute({k: "" if v is None else str(v) for k, v in data.items()})
 
 
+def aktif(prof, kode: str | None) -> bool:
+    """False bila kalimat ini dimatikan di menu Komentar untuk profil jurnal ini."""
+    return not kode or kode not in (getattr(prof, "komentar_mati", None) or [])
+
+
 def validasi(kode: str, templat: str) -> str | None:
     """Pesan galat bila kalimat kustom tidak sah, None bila sah."""
     e = INDEKS.get(kode)
