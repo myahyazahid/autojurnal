@@ -12,7 +12,8 @@ from app.engine.ekstrak import ekstrak_template
 from app.engine.layanan import cek_naskah
 
 RX_VAR = re.compile(r"\$(?:\{([_a-zA-Z]\w*)\}|([_a-zA-Z]\w*))", re.ASCII)
-SUMBER = ["app/engine/periksa.py", "app/engine/referensi.py", "app/ai/naratif.py", "app/engine/anotasi.py"]
+SUMBER = ["app/engine/periksa.py", "app/engine/referensi.py", "app/engine/objek.py", "app/engine/kebersihan.py",
+          "app/ai/naratif.py", "app/engine/anotasi.py"]
 AKAR = Path(__file__).resolve().parents[1]
 
 
@@ -23,6 +24,8 @@ def test_katalog_konsisten():
         assert dipakai <= {v.nama for v in e.variabel}, e.kode
         assert K.validasi(e.kode, e.bawaan) is None, e.kode
         assert "—" not in e.bawaan and e.grup in K.GRUP and e.tingkat in ("wajib", "saran")
+        # nama variabel tidak boleh bentrok dengan parameter katalog.temuan()
+        assert not {v.nama for v in e.variabel} & {"para", "kelompok", "sumber", "tingkat", "prof", "kode"}, e.kode
 
 
 def test_setiap_pemanggilan_mengisi_variabel_entri():

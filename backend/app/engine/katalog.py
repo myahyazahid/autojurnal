@@ -30,7 +30,7 @@ class Entri:
 
 
 GRUP = [
-    "Tata Letak", "Format", "Struktur", "Judul", "Abstrak", "Kata Kunci", "Paragraf", "Tabel & Gambar",
+    "Tata Letak", "Format", "Struktur", "Judul", "Penulis", "Abstrak", "Kata Kunci", "Paragraf", "Tabel & Gambar",
     "Referensi", "Naskah", "Naratif (AI)", "Ringkasan & label",
 ]
 
@@ -132,6 +132,16 @@ KATALOG: list[Entri] = [
           "Judul bahasa Inggris terdiri atas $jumlah kata, sedangkan ketentuan template maksimal $maksimal kata.",
           (_JUMLAH("jumlah kata judul Inggris", "16"), _MAKSIMAL("12"))),
 
+    Entri("judul.singkatan", "Judul", "Judul memuat singkatan",
+          "Judul memuat singkatan $daftar. Template meminta judul ditulis tanpa singkatan.",
+          (Var("daftar", "singkatan yang ditemukan", "SPK, AHP"),)),
+
+    # ---- Penulis ---------------------------------------------------------------------
+    Entri("penulis.email", "Penulis", "Email penulis belum ada",
+          "Email penulis belum dicantumkan. Template meminta email penulis di bawah nama dan afiliasi."),
+    Entri("penulis.orcid", "Penulis", "ORCID penulis belum ada",
+          "ORCID penulis belum dicantumkan. Template meminta ORCID untuk setiap penulis."),
+
     # ---- Abstrak ---------------------------------------------------------------------
     Entri("abstrak.tidak_ada", "Abstrak", "Abstrak belum ada",
           "$nama belum ada di naskah.", (Var("nama", "Abstrak atau Abstract (bahasa Inggris)", "Abstrak"),)),
@@ -145,6 +155,10 @@ KATALOG: list[Entri] = [
     Entri("abstrak.paragraf", "Abstrak", "Abstrak lebih dari satu paragraf",
           "$nama terbagi menjadi $jumlah paragraf. Template meminta satu paragraf saja.",
           (Var("nama", "nama abstrak", "Abstrak"), _JUMLAH("jumlah paragraf", "2"))),
+
+    Entri("abstrak.sitasi", "Abstrak", "Abstrak memuat sitasi",
+          "$nama memuat sitasi $daftar. Template meminta abstrak tanpa sitasi.",
+          (Var("nama", "Abstrak atau Abstract (bahasa Inggris)", "Abstrak"), Var("daftar", "sitasi yang ditemukan", "[3], [7]"))),
 
     # ---- Kata kunci ------------------------------------------------------------------
     Entri("kata_kunci.tidak_ada", "Kata Kunci", "Kata kunci belum ada",
@@ -187,6 +201,42 @@ KATALOG: list[Entri] = [
     Entri("tabel_gambar.gambar_tanpa_judul", "Tabel & Gambar", "Gambar belum berjudul",
           "Gambar ini belum punya judul, misalnya “Gambar 1. ...”."),
 
+    Entri("tabel_gambar.garis", "Tabel & Gambar", "Pola garis tabel berbeda",
+          "$tabel memakai $aktual, sedangkan template memakai $harapan.",
+          (Var("tabel", "nama tabel", "Tabel 2"), _AKTUAL("pola garis di naskah: grid penuh, garis vertikal, garis horizontal saja, atau format tanpa garis", "grid penuh (garis horizontal dan vertikal)"),
+           _HARAPAN("pola garis template", "garis horizontal saja, tanpa garis vertikal"))),
+    Entri("tabel_gambar.perataan_tabel", "Tabel & Gambar", "Perataan tabel berbeda",
+          "$tabel diletakkan $aktual, sedangkan template meletakkan tabel $harapan.",
+          (Var("tabel", "nama tabel", "Tabel 2"), _AKTUAL("perataan di naskah", "rata kiri"),
+           _HARAPAN("perataan template", "di tengah (center)"))),
+    Entri("tabel_gambar.lebar_tabel", "Tabel & Gambar", "Lebar tabel belum selebar halaman",
+          "$tabel selebar $aktual cm, belum mengikuti lebar area teks $harapan cm. Pakai AutoFit Window sesuai template.",
+          (Var("tabel", "nama tabel", "Tabel 2"), _AKTUAL("lebar tabel", "9,8"), _HARAPAN("lebar area teks", "15"))),
+    Entri("tabel_gambar.melebihi_margin", "Tabel & Gambar", "Tabel/gambar melewati margin",
+          "$objek selebar $aktual cm, melewati lebar area teks $harapan cm. Perkecil agar tidak keluar dari margin.",
+          (Var("objek", "Tabel 2, Tabel ini, atau Gambar ini", "Tabel 2"), _AKTUAL("lebar objek", "17,3"),
+           _HARAPAN("lebar area teks", "15"))),
+    Entri("tabel_gambar.tabel_berupa_gambar", "Tabel & Gambar", "Tabel disisipkan sebagai gambar",
+          "$tabel tampaknya disisipkan sebagai gambar. Buat ulang sebagai tabel Word agar isinya bisa dibaca dan disunting.",
+          (Var("tabel", "nama tabel", "Tabel 3"),), "saran"),
+    Entri("tabel_gambar.tanpa_sumber", "Tabel & Gambar", "Keterangan sumber belum ada",
+          "$objek belum diberi keterangan sumber, misalnya “Sumber: ...” di bawahnya.",
+          (Var("objek", "nama tabel/gambar", "Gambar 2"),)),
+    Entri("tabel_gambar.perataan_gambar", "Tabel & Gambar", "Perataan gambar berbeda",
+          "Gambar ini diletakkan $aktual, sedangkan template meletakkan gambar $harapan.",
+          (_AKTUAL("perataan di naskah", "rata kiri"), _HARAPAN("perataan template", "di tengah (center)"))),
+    Entri("tabel_gambar.gambar_melayang", "Tabel & Gambar", "Gambar tidak In Line with Text",
+          "Gambar ini memakai Wrap Text “$aktual”. Ubah menjadi “In Line with Text” sesuai template.",
+          (_AKTUAL("pengaturan Wrap Text di naskah", "Square"),)),
+    Entri("tabel_gambar.resolusi_rendah", "Tabel & Gambar", "Resolusi gambar rendah",
+          "Resolusi gambar ini sekitar $aktual dpi, di bawah $harapan dpi. Gambar bisa tampak buram saat dicetak.",
+          (_AKTUAL("perkiraan resolusi", "72"), _HARAPAN("resolusi minimal", "150")), "saran"),
+    Entri("tabel_gambar.persamaan_gambar", "Tabel & Gambar", "Persamaan berupa gambar",
+          "Persamaan ini berupa gambar. Tulis ulang dengan Equation Editor agar bisa disunting."),
+    Entri("tabel_gambar.nomor_persamaan", "Tabel & Gambar", "Nomor persamaan tidak berurutan",
+          "Nomor persamaan tidak berurutan: tertulis ($aktual), seharusnya ($harapan).",
+          (_AKTUAL("nomor di naskah", "4"), _HARAPAN("nomor yang benar", "3"))),
+
     # ---- Referensi ---------------------------------------------------------------------------
     Entri("referensi.tidak_ada", "Referensi", "Daftar pustaka tidak ditemukan",
           "Daftar pustaka tidak ditemukan, atau judul bagiannya tidak dikenali."),
@@ -220,6 +270,19 @@ KATALOG: list[Entri] = [
     Entri("referensi.tidak_disitasi", "Referensi", "Referensi tidak disitasi",
           "Referensi ini tidak pernah disitasi di naskah.", (), "saran"),
 
+    Entri("referensi.manajer", "Referensi", "Tidak memakai aplikasi manajemen referensi",
+          "Sitasi dan daftar pustaka tampaknya ditulis manual. Gunakan aplikasi manajemen referensi seperti Mendeley atau Zotero sesuai template.",
+          (), "saran"),
+    Entri("referensi.tanpa_doi", "Referensi", "Referensi tanpa DOI",
+          "Referensi ini belum mencantumkan DOI.", (), "saran"),
+    Entri("referensi.sumber_primer", "Referensi", "Sumber primer kurang",
+          "Referensi dari jurnal atau prosiding diperkirakan $jumlah dari $total ($persen%), di bawah ketentuan template minimal $persen_minimal%.",
+          (_JUMLAH("referensi jurnal/prosiding", "9"), Var("total", "jumlah referensi", "15"),
+           Var("persen", "persentase di naskah", "60"), Var("persen_minimal", "persentase minimal template", "80")), "saran"),
+    Entri("referensi.sumber_terlarang", "Referensi", "Merujuk sumber yang dilarang",
+          "Referensi ini bersumber dari $situs, yang tidak diperbolehkan template.",
+          (Var("situs", "sumber yang dilarang", "Wikipedia"),)),
+
     # ---- Naskah ------------------------------------------------------------------------------
     Entri("naskah.jumlah_kata", "Naskah", "Panjang naskah di luar batas",
           "Naskah berisi sekitar $jumlah kata di luar daftar pustaka dan isi tabel, sedangkan ketentuan template $ketentuan.",
@@ -233,6 +296,32 @@ KATALOG: list[Entri] = [
     Entri("naskah.sisa_petunjuk", "Naskah", "Petunjuk template belum dihapus",
           "Petunjuk dari template sepertinya belum dihapus: $petunjuk",
           (Var("petunjuk", "potongan teks petunjuk", "[Times New Roman 11 Bold]"),), "saran"),
+
+    Entri("naskah.bahasa", "Naskah", "Bahasa naskah berbeda",
+          "Naskah tampaknya ditulis dalam bahasa $aktual, sedangkan template meminta bahasa $harapan.",
+          (_AKTUAL("bahasa naskah", "Indonesia"), _HARAPAN("bahasa template", "Inggris"))),
+    Entri("naskah.track_changes", "Naskah", "Masih ada track changes",
+          "Naskah masih berisi $jumlah perubahan terlacak (track changes). Terima atau tolak semua perubahan sebelum naskah dikirim.",
+          (_JUMLAH("jumlah perubahan", "14"),), "saran"),
+    Entri("naskah.komentar_lama", "Naskah", "Masih ada komentar lama",
+          "Naskah masih berisi $jumlah komentar lama. Hapus komentar tersebut sebelum naskah dikirim.",
+          (_JUMLAH("jumlah komentar", "3"),), "saran"),
+    Entri("naskah.sorotan", "Naskah", "Teks masih disorot (highlight)",
+          "Teks di paragraf ini masih diberi sorotan (highlight) $aktual. Hapus sorotan sebelum naskah dikirim.",
+          (_AKTUAL("warna sorotan", "kuning"),)),
+    Entri("naskah.teks_berwarna", "Naskah", "Teks tidak berwarna hitam",
+          "$elemen memakai warna teks $aktual. Template memakai teks hitam.",
+          (_ELEMEN, _AKTUAL("warna teks di naskah", "biru (#2F5496)"))),
+    Entri("naskah.spasi_ganda", "Naskah", "Spasi ganda antarkata",
+          "Paragraf ini berisi $jumlah spasi ganda antarkata, misalnya di antara “$sebelum” dan “$sesudah”.",
+          (_JUMLAH("jumlah spasi ganda", "2"), Var("sebelum", "kata sebelum spasi ganda", "sistem"),
+           Var("sesudah", "kata sesudah spasi ganda", "informasi")), "saran"),
+    Entri("naskah.baris_kosong", "Naskah", "Baris kosong berturut-turut",
+          "Setelah paragraf ini ada $jumlah baris kosong berturut-turut. Atur jarak antarparagraf lewat Spacing, bukan baris kosong.",
+          (_JUMLAH("jumlah baris kosong", "3"),), "saran"),
+    Entri("naskah.catatan_kaki", "Naskah", "Memakai catatan kaki",
+          "Naskah memakai $jumlah catatan kaki (footnote), padahal template tidak memperbolehkannya. Pindahkan isinya ke dalam teks.",
+          (_JUMLAH("jumlah catatan kaki", "2"),)),
 
     # ---- Naratif (AI) -------------------------------------------------------------------------
     Entri("naratif.tidak_sesuai", "Naratif (AI)", "Aturan isi tidak terpenuhi (penilaian AI)",
@@ -337,6 +426,13 @@ def ketentuan(mn: int | float | None, mx: int | float | None, satuan: str) -> st
     if mx:
         return f"maksimal {angka(mx)} {satuan}"
     return f"minimal {angka(mn)} {satuan}"
+
+
+def cm(v: float) -> str:
+    """Ukuran dalam cm, satu desimal, gaya Indonesia: 15.04 -> '15'."""
+    from .teks import angka
+
+    return angka(round(v, 1))
 
 
 def di_luar_batas(n: int, mn: int | None, mx: int | None) -> bool:

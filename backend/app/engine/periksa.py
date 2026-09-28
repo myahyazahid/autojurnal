@@ -10,8 +10,10 @@ from . import teks as T
 from .docmodel import DocModel, Para, q
 from .klasifikasi import CAP_GAMBAR, CAP_TABEL, klasifikasi
 from .profil import FormatElemen, Profil
-from .referensi import cek_referensi, entri_pustaka, sitasi_numerik, sitasi_penulis_tahun
+from .referensi import RX_KURUNG, RX_SITASI_NUM, cek_referensi, entri_pustaka, sitasi_numerik, sitasi_penulis_tahun
 from .katalog import di_luar_batas, ketentuan
+from .kebersihan import cek_kebersihan
+from .objek import cek_objek, tabel_tata_letak
 from .temuan import Temuan
 
 PERAN_KE_ELEMEN = {
@@ -290,6 +292,44 @@ def cek_judul(dm: DocModel, prof: Profil) -> list[Temuan]:
         ne = sum(p.kata for p in je)
         if ne > aj.maks_kata_inggris:
             out.append(tm("judul.inggris_jumlah_kata", para=je[0].i, jumlah=ne, maksimal=aj.maks_kata_inggris))
+    if aj.tanpa_singkatan:
+        singkatan = _singkatan(" ".join(p.bersih for p in jp))
+        if singkatan:
+            out.append(tm("judul.singkatan", para=jp[0].i, daftar=", ".join(singkatan[:4])))
+    return out
+
+
+RX_SINGKATAN = re.compile(r"\b(?:[A-Z]{2,}[a-z]?s?|[A-Z][a-z]?[A-Z]+[a-z]?)\b")
+RX_ROMAWI = re.compile(r"^[IVXLC]+$")
+
+
+def _singkatan(judul: str) -> list[str]:
+    """Singkatan di judul. Judul kapital semua hanya bisa dicek dari singkatan dalam kurung, mis. (SPK)."""
+    inti = T.pisah_petunjuk(judul)[0]
+    if T.huruf_kapital_semua(inti):
+        calon = re.findall(r"\(([A-Z][A-Z0-9-]{1,9})\)", inti)
+    else:
+        calon = RX_SINGKATAN.findall(inti)
+    return list(dict.fromkeys(c for c in calon if not RX_ROMAWI.match(c)))
+
+
+def cek_penulis(dm: DocModel, prof: Profil) -> list[Temuan]:
+    ap, out = prof.penulis, []
+    if not (ap.wajib_email or ap.wajib_orcid):
+        return out
+    batas = next((p.i for p in dm.paras if p.peran in ("label_abstrak", "abstrak", "label_abstrak_inggris",
+                                                          "abstrak_inggris", "kata_kunci", "judul_bagian")), len(dm.paras))
+    depan = [p for p in dm.paras[:batas] if not p.kosong]
+    teks = " ".join(p.teks for p in depan)
+    jangkar = next((p.i for p in depan if p.peran == "info_penulis"), None) or next(
+        (p.i for p in depan if p.peran == "judul"), None)
+    tm = lambda kode: KT.temuan(prof, "Penulis", kode, para=jangkar)  # noqa: E731
+    if ap.wajib_email and not re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", teks):
+        out.append(tm("penulis.email"))
+    if ap.wajib_orcid:
+        tautan = " ".join(r.target_ref for r in dm.doc.part.rels.values() if r.is_external)
+        if not re.search(r"orcid|\b\d{4}-\d{4}-\d{4}-\d{3}[\dX]\b", teks + " " + tautan, re.I):
+            out.append(tm("penulis.orcid"))
     return out
 
 
@@ -316,6 +356,12 @@ def cek_abstrak(dm: DocModel, prof: Profil) -> list[Temuan]:
             out.append(tm("abstrak.jumlah_kata", para=ps[0].i, nama=nama, **batas))
         if ab.satu_paragraf and len(ps) > 1:
             out.append(tm("abstrak.paragraf", para=ps[1].i, nama=nama, jumlah=len(ps)))
+        if ab.tanpa_sitasi:
+            for p in ps:
+                sitasi = [m.group(0) for rx in (RX_SITASI_NUM, RX_KURUNG) for m in rx.finditer(_tanpa_label(p))]
+                if sitasi:
+                    out.append(tm("abstrak.sitasi", para=p.i, nama=nama, daftar=", ".join(dict.fromkeys(sitasi[:3]))))
+                    break
     return out
 
 
@@ -391,17 +437,6 @@ def _tetangga(dm: DocModel, blok: int, cocok, jarak: int = 3) -> bool:
     return False
 
 
-def _tabel_tata_letak(t) -> bool:
-    """Tabel yang dipakai untuk menata rumus/kotak, bukan tabel data."""
-    baris = t.el.findall(q("tr"))
-    kolom = max((len(r.findall(q("tc"))) for r in baris), default=0)
-    if len(baris) < 2 or kolom < 2:
-        return True
-    sel = [p for p in t.paras if not p.kosong]
-    rumus = sum(1 for p in sel if "=" in p.bersih or p.ada_persamaan)
-    return bool(sel) and rumus / len(sel) >= 0.5
-
-
 def cek_tabel_gambar(dm: DocModel, prof: Profil) -> list[Temuan]:
     tg, out, K = prof.tabel_gambar, [], "Tabel & Gambar"
     tm = lambda kode, **kw: KT.temuan(prof, K, kode, **kw)  # noqa: E731
@@ -427,7 +462,7 @@ def cek_tabel_gambar(dm: DocModel, prof: Profil) -> list[Temuan]:
                 out.append(tm("tabel_gambar.belum_dirujuk", para=p.i, kelompok=f"tg.rujuk.{jenis}", label=label, nomor=n))
     if tg.wajib_judul:
         for t in dm.tabel:
-            if any(p.peran == "depan_lain" for p in t.paras) or _tabel_tata_letak(t):
+            if any(p.peran == "depan_lain" for p in t.paras) or tabel_tata_letak(t):
                 continue
             if t.ada_gambar:
                 punya = any(p.peran == "judul_gambar" for p in t.paras) or _tetangga(dm, t.blok, lambda p: p.peran == "judul_gambar")
@@ -491,8 +526,8 @@ def dikenal_dari(prof: Profil) -> set[str]:
 def periksa(dm: DocModel, prof: Profil) -> tuple[list[Temuan], dict]:
     klasifikasi(dm, dikenal_dari(prof))
     temuan: list[Temuan] = []
-    for fungsi in (cek_tata_letak, cek_struktur, cek_judul, cek_abstrak, cek_kata_kunci, cek_format,
-                   cek_paragraf, cek_tabel_gambar, cek_referensi, cek_naskah):
+    for fungsi in (cek_tata_letak, cek_struktur, cek_judul, cek_penulis, cek_abstrak, cek_kata_kunci, cek_format,
+                   cek_paragraf, cek_tabel_gambar, cek_objek, cek_referensi, cek_naskah, cek_kebersihan):
         temuan.extend(fungsi(dm, prof))
     return temuan, statistik(dm, prof)
 

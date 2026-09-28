@@ -107,12 +107,17 @@ def _objek_dekat(dm: DocModel, p: Para, jenis: str, jarak: int = 3) -> str | Non
             return (jenis == "tabel") != b.ada_gambar
         return jenis == "gambar" and b.ada_gambar
 
+    def objek_lain(b) -> bool:
+        return isinstance(b, Tabel) or b.ada_gambar
+
     def telusur(arah: int) -> bool:
         i, n = p.blok + arah, 0
         while 0 <= i < len(dm.blok) and n < jarak:
             b = dm.blok[i]
             if cocok(b):
                 return True
+            if objek_lain(b):  # objek jenis lain lebih dekat: keterangan ini bukan miliknya
+                return False
             if isinstance(b, Para) and not b.kosong:
                 n += 1
                 if CAP_TABEL.match(b.bersih) or CAP_GAMBAR.match(b.bersih):
@@ -257,6 +262,9 @@ def klasifikasi(dm: DocModel, dikenal: set[str] | None = None) -> None:
             p.peran = "gambar"
             continue
         m_t, m_g = CAP_TABEL.match(t), CAP_GAMBAR.match(t)
+        # "Tabel 6 menunjukkan bahwa ...", "Tabel 2 dan Tabel 3 ..." adalah kalimat isi, bukan judul
+        if (m_t or m_g) and re.match(r"\s*(?:[a-z]|,|&)", t[(m_t or m_g).end():]):
+            m_t = m_g = None
         if m_t or m_g:
             jenis = "tabel" if m_t else "gambar"
             posisi = _objek_dekat(dm, p, jenis)

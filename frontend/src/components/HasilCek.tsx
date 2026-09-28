@@ -1,6 +1,6 @@
 import {
   BadgeCheck, BookMarked, ChevronDown, Download, FileText, Files, Heading, Layers, LayoutTemplate, ListTree, MessageSquareText,
-  OctagonAlert, Pilcrow, ShieldCheck, ShieldX, Table2, Tags, TriangleAlert, Type, X, type LucideIcon,
+  OctagonAlert, Pilcrow, ShieldCheck, ShieldX, Table2, Tags, TriangleAlert, Type, UserRound, X, type LucideIcon,
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -10,7 +10,7 @@ import { IkonBerkas, Kartu, Lencana, Pesan, TautanTombol } from "./ui";
 type Saring = "semua" | "wajib" | "saran" | "ai";
 
 const IKON_KATEGORI: Record<string, LucideIcon> = {
-  "Tata Letak": LayoutTemplate, Format: Type, Struktur: ListTree, Judul: Heading, Abstrak: FileText, "Kata Kunci": Tags,
+  "Tata Letak": LayoutTemplate, Format: Type, Struktur: ListTree, Judul: Heading, Penulis: UserRound, Abstrak: FileText, "Kata Kunci": Tags,
   Paragraf: Pilcrow, "Tabel & Gambar": Table2, Referensi: BookMarked, Naskah: Files,
 };
 const ikonKategori = (k: string) => IKON_KATEGORI[k] ?? (k.startsWith("Naratif") ? MessageSquareText : Layers);

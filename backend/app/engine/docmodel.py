@@ -57,6 +57,16 @@ def _props_rpr(rpr) -> dict[str, Any]:
         el = rpr.find(q(tag))
         if el is not None:
             out[kunci] = _val(el) not in ("0", "false", "off")
+    c = rpr.find(q("color"))
+    if c is not None:
+        tema = c.get(q("themeColor"))
+        out["warna"] = f"tema:{tema}" if tema else (_val(c) or "auto")
+    h = rpr.find(q("highlight"))
+    if h is not None:
+        out["sorot"] = _val(h) or "none"
+    shd = rpr.find(q("shd"))
+    if shd is not None and (shd.get(q("fill")) or "auto").lower() not in ("auto", "ffffff") and "sorot" not in out:
+        out["sorot"] = "#" + shd.get(q("fill"))
     return out
 
 
@@ -124,6 +134,7 @@ class ResolverStyle:
         self.style: dict[str, Any] = {}
         self.nama: dict[str, str] = {}
         self.default_para: str | None = None
+        self.default_tabel: str | None = None
         for s in el.findall(q("style")):
             sid = s.get(q("styleId"))
             self.style[sid] = s
@@ -131,6 +142,8 @@ class ResolverStyle:
             self.nama[sid] = _val(n) or sid
             if s.get(q("type")) == "paragraph" and s.get(q("default")) in ("1", "true"):
                 self.default_para = sid
+            if s.get(q("type")) == "table" and s.get(q("default")) in ("1", "true"):
+                self.default_tabel = sid
         dd = el.find(q("docDefaults"))
         self.dd_rpr = _props_rpr(dd.find(f"{q('rPrDefault')}/{q('rPr')}")) if dd is not None else {}
         self.dd_ppr = _props_ppr(dd.find(f"{q('pPrDefault')}/{q('pPr')}")) if dd is not None else {}
@@ -201,6 +214,9 @@ class RunInfo:
     tebal: bool
     miring: bool
     kapital: bool
+    warna: tuple[str, str] = ("auto", "default")
+    sorot: str = "none"
+    tautan: bool = False  # bagian dari hyperlink
 
 
 @dataclass
@@ -416,6 +432,10 @@ class DocModel:
                     tebal=bool(p.get("tebal", (False,))[0]),
                     miring=bool(p.get("miring", (False,))[0]),
                     kapital=bool(p.get("kapital", (False,))[0]),
+                    warna=p.get("warna", ("auto", "default")),
+                    sorot=p.get("sorot", ("none",))[0],
+                    tautan=etree.QName(r.getparent()).localname == "hyperlink"
+                    or "link" in self.res.nama.get(rs or "", "").lower(),
                 )
             )
         teks = "".join(r.teks for r in runs)

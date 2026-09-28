@@ -239,6 +239,7 @@ def ekstrak_template(sumber: str | IO[bytes]) -> tuple[Profil, list[dict]]:
     _aturan_naskah(prof, kalimat_semua)
     _aturan_referensi(prof, semua, kalimat_semua, catat)
     _aturan_tabel_gambar(prof, per_peran, kalimat_semua)
+    _aturan_lanjut(prof, dm, per_peran, kalimat_semua, catat)
     _struktur(prof, dm, semua, catat)
     _naratif(prof, dm)
 
@@ -253,7 +254,7 @@ def ekstrak_template(sumber: str | IO[bytes]) -> tuple[Profil, list[dict]]:
         ringkas.append(f"sitasi {prof.referensi.gaya_sitasi.replace('_', '-')}")
     if ringkas:
         catat("Aturan isi yang terbaca dari teks template: " + ", ".join(ringkas) + ".")
-    catat("Hasil ini dibaca otomatis tanpa AI — mohon periksa setiap bagian sebelum disimpan.")
+    catat("Hasil ini dibaca otomatis tanpa AI. Mohon periksa setiap bagian sebelum disimpan.")
     prof.catatan_ekstraksi = catat.isi
 
     peta = [
@@ -281,7 +282,7 @@ def _terapkan(prof: Profil, elemen: str, atribut: dict, catat, asal: str):
         if lama is not None and lama != v:
             catat(
                 f"{judul_el}: contoh di template memakai {k.replace('_pt', '').replace('_', ' ')} "
-                f"{_tampil(lama)}, tetapi {asal} menyebut {_tampil(v)}. Dipakai {_tampil(v)} — mohon dicek."
+                f"{_tampil(lama)}, tetapi {asal} menyebut {_tampil(v)}. Dipakai {_tampil(v)}, mohon dicek."
             )
         setattr(fe, k, v)
 
@@ -421,6 +422,133 @@ def _aturan_tabel_gambar(prof: Profil, per_peran, kalimat: list[str]):
             tg.posisi_judul_tabel = "atas"
         if re.search(r"(?:judul|keterangan|nomor) gambar[^.]{0,70}(?:di\s*bawah|dibawah|bagian bawah)", kl):
             tg.posisi_judul_gambar = "bawah"
+
+
+_RX_DILARANG = re.compile(
+    r"tidak (?:boleh|diperkenankan|diizinkan|dianjurkan)|dilarang|\bbukan\b|hindari|jangan|"
+    r"not (?:allowed|permitted|accepted)|\bavoid|prohibited"
+)
+SUMBER_TERLARANG = ("wikipedia", "blogspot", "wordpress", "blog", "brainly", "youtube", "media sosial")
+
+
+def _aturan_lanjut(prof: Profil, dm: DocModel, per_peran, kalimat: list[str], catat):
+    """Aturan objek, kebersihan, penulis, dan mutu referensi: dari contoh di template lalu kalimat petunjuk."""
+    from .kebersihan import PERAN_ELEMEN, RX_URL, hitam
+    from .objek import LABEL_POLA, garis_tabel, perataan_tabel, tabel_data
+
+    tg, an, ref, pn = prof.tabel_gambar, prof.naskah, prof.referensi, prof.penulis
+    terbaca: list[str] = []
+
+    # ---- contoh objek di template ------------------------------------------------
+    tabel = [t for t in dm.tabel if tabel_data(t)]
+    if tabel:
+        pola, n = Counter(garis_tabel(dm, t).pola for t in tabel).most_common(1)[0]
+        # "tanpa garis" tidak disimpulkan dari contoh: tabel contoh yang dibuat generator sering polos
+        if pola in ("horizontal", "grid") and n >= len(tabel) * 0.6:
+            tg.garis_tabel = pola
+            terbaca.append(f"pola garis tabel {LABEL_POLA[pola]} (dari contoh tabel)")
+        if all(perataan_tabel(dm, t) == "tengah" for t in tabel):
+            tg.perataan_tabel = "tengah"
+            terbaca.append("tabel di tengah halaman (dari contoh tabel)")
+    rata_gambar = Counter(p.pp_nilai("perataan", "kiri") for p in per_peran.get("gambar", []) if p.ada_gambar and not p.dalam_tabel)
+    if rata_gambar and rata_gambar.most_common(1)[0][0] == "tengah":
+        tg.perataan_gambar = "tengah"
+        terbaca.append("gambar di tengah (dari contoh gambar)")
+    total = hitam_n = 0
+    for p in dm.paras:
+        if p.peran in PERAN_ELEMEN:
+            for r in p.runs:
+                n = len(r.teks.strip())
+                if n and not r.tautan and not RX_URL.search(r.teks):
+                    total += n
+                    hitam_n += n if hitam(r.warna[0]) else 0
+    if total >= 200 and hitam_n / total >= 0.98:
+        an.teks_hitam = True
+    depan = " ".join(p.teks for r in ("info_penulis", "depan_lain") for p in per_peran.get(r, []))
+    if re.search(r"@|e-?mail|surel", depan, re.I):
+        pn.wajib_email = True
+        terbaca.append("email penulis (dari bagian penulis)")
+    if re.search(r"orcid", depan, re.I):
+        pn.wajib_orcid = True
+        terbaca.append("ORCID penulis (dari bagian penulis)")
+
+    # ---- kalimat petunjuk -----------------------------------------------------
+    for k in kalimat:
+        kl = k.lower()
+        tentang_tabel = re.search(r"tabel|table", kl)
+        if tentang_tabel and re.search(
+                r"(?:tanpa|tidak (?:menggunakan|memakai|ada|boleh ada)|hindari|jangan)\s+(?:menggunakan\s+)?garis\s+(?:tegak|vertikal)|"
+                r"garis\s+(?:tegak|vertikal)[^.]{0,30}(?:tidak|dihapus|dihilangkan)|hanya\s+(?:menggunakan\s+|memakai\s+)?"
+                r"garis\s+(?:mendatar|horizontal|horisontal)|garis\s+(?:mendatar|horizontal|horisontal)\s+saja|"
+                r"no vertical (?:lines|borders)|horizontal (?:lines|borders) only|only horizontal", kl):
+            tg.garis_tabel = "horizontal"
+        elif tentang_tabel and re.search(r"(?:garis|border)[^.]{0,20}(?:penuh|lengkap|semua sisi)|all borders|table grid", kl):
+            tg.garis_tabel = "grid"
+        if re.search(r"(?:lebar|width)[^.]{0,20}(?:tabel|table)[^.]{0,40}(?:mengikuti|sesuai|selebar|sama dengan|menyesuaikan)"
+                     r"[^.]{0,20}(?:halaman|kertas|margin|kolom)|auto\s*fit window|selebar halaman", kl):
+            tg.tabel_selebar_halaman = True
+        if re.search(r"in ?line with text|sebaris dengan teks", kl):
+            tg.gambar_sebaris = True
+        m = re.search(r"(\d{2,4})\s*dpi", kl)
+        if m and re.search(r"gambar|figure|foto|image|resolusi|resolution", kl):
+            tg.min_dpi_gambar = int(m.group(1))
+        elif tg.min_dpi_gambar is None and re.search(
+                r"(?:gambar|figure|foto|image)[^.]{0,60}(?:jelas|terbaca|tajam|tidak buram|resolusi (?:tinggi|baik)|"
+                r"high[- ]resolution|clear|legible)", kl):
+            tg.min_dpi_gambar = 96
+            catat("Resolusi gambar minimal dianggap 96 dpi (resolusi layar) karena template meminta gambar jelas. "
+                  "Gambar di bawahnya berarti diperbesar melewati ukuran aslinya. Ubah bila perlu.")
+        if re.search(r"tabel|gambar|table|figure", kl) and re.search(
+                r"(?:cantumkan|sertakan|tuliskan|diberi|disertai|dilengkapi|mencantumkan|wajib|harus)[^.]{0,40}"
+                r"(?:keterangan\s+)?sumber(?:nya)?\b|(?:include|state|cite)[^.]{0,20}(?:the\s+)?source", kl):
+            tg.wajib_sumber = True
+        if re.search(r"equation editor|microsoft equation|mathtype|(?:persamaan|rumus)[^.]{0,60}equation", kl):
+            tg.persamaan_editor = True
+        if re.search(r"(?:tidak|tanpa|hindari|dilarang|jangan)[^.]{0,40}(?:catatan kaki|footnote)|"
+                     r"(?:catatan kaki|footnote)[^.]{0,30}(?:tidak (?:boleh|diperkenankan|digunakan)|dilarang)|"
+                     r"(?:do not|avoid)[^.]{0,20}footnotes?", kl):
+            an.catatan_kaki_dilarang = True
+        m = re.search(r"(?:naskah|artikel|manuscript|article|makalah)[^.]{0,60}(?:ditulis|written|disusun)[^.]{0,20}"
+                      r"(?:dalam|in|menggunakan)\s+(?:bahasa\s+)?(indonesia|inggris|english|indonesian)\b", kl)
+        if m and not re.search(r"(?:indonesia|inggris|english)\s+(?:atau|or|maupun|dan|and)\s+(?:bahasa\s+)?"
+                               r"(?:indonesia|inggris|english)", kl):
+            an.bahasa = "inggris" if m.group(1) in ("inggris", "english") else "indonesia"
+        if re.search(r"judul[^.]{0,80}(?:tidak|tanpa|hindari|jangan)[^.]{0,30}(?:singkatan|akronim)|"
+                     r"title[^.]{0,60}(?:avoid|without|no)\s+(?:abbreviations?|acronyms?)", kl):
+            prof.judul.tanpa_singkatan = True
+        if re.search(r"abstra[^.]{0,150}(?:tidak|tanpa|jangan)[^.]{0,40}(?:sitasi|kutipan|rujukan|referensi|citation|pustaka)|"
+                     r"abstract[^.]{0,80}(?:without|no|avoid)[^.]{0,20}(?:citations?|references?)", kl):
+            prof.abstrak.tanpa_sitasi = True
+        if re.search(r"(?:e-?mail|surel)[^.]{0,40}(?:penulis|korespondensi|corresponding)", kl):
+            pn.wajib_email = True
+        if re.search(r"mendeley|zotero|endnote|manajemen referensi|reference manag", kl):
+            wajib = re.search(r"wajib|harus|diwajibkan|must|required|mandatory", kl)
+            saran = re.search(r"disarankan|dianjurkan|sebaiknya|recommended|encouraged|suggested", kl)
+            ref.manajer_referensi = "disarankan" if saran and not wajib else "wajib"
+        if re.search(r"\bdoi\b", kl) and re.search(
+                r"wajib|harus|sertakan|cantumkan|mencantumkan|dilengkapi|disertai|include|must|should|required", kl):
+            ref.wajib_doi = True
+        m = re.search(r"(\d{1,3})\s*%[^.;%]{0,60}?(?:sumber primer|primer|jurnal|journal|prosiding|proceeding|artikel ilmiah)", kl)
+        if m:
+            ref.persen_sumber_primer = float(m.group(1))
+        if _RX_DILARANG.search(kl) and re.search(r"referensi|rujukan|pustaka|sumber|kutip|cite|citation|reference", kl):
+            for w in SUMBER_TERLARANG:
+                if w in kl and w not in ref.sumber_terlarang:
+                    ref.sumber_terlarang.append(w)
+
+    for nama, nilai in (
+        ("pola garis tabel", tg.garis_tabel), ("tabel selebar halaman", tg.tabel_selebar_halaman),
+        ("gambar In Line with Text", tg.gambar_sebaris), ("resolusi gambar minimal", tg.min_dpi_gambar),
+        ("keterangan sumber tabel/gambar", tg.wajib_sumber), ("persamaan dengan Equation Editor", tg.persamaan_editor),
+        ("tanpa catatan kaki", an.catatan_kaki_dilarang), ("bahasa naskah", an.bahasa),
+        ("judul tanpa singkatan", prof.judul.tanpa_singkatan), ("abstrak tanpa sitasi", prof.abstrak.tanpa_sitasi),
+        ("aplikasi manajemen referensi", ref.manajer_referensi), ("DOI pada referensi", ref.wajib_doi),
+        ("persentase sumber primer", ref.persen_sumber_primer), ("sumber terlarang", ", ".join(ref.sumber_terlarang)),
+    ):
+        if nilai and not any(t.startswith(nama) for t in terbaca):
+            terbaca.append(nama if nilai is True else f"{nama}: {_tampil(nilai)}")
+    if terbaca:
+        catat("Aturan tambahan yang terbaca: " + "; ".join(terbaca) + ".")
 
 
 def _struktur(prof: Profil, dm: DocModel, semua: str, catat):

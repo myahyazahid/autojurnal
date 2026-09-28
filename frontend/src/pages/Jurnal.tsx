@@ -245,9 +245,11 @@ const YANG_DIBACA: [string, string][] = [
   ["Tata letak", "ukuran kertas, orientasi, margin, jumlah kolom"],
   ["Format per elemen", "font, ukuran, tebal/miring, perataan, spasi untuk judul, abstrak, heading, isi, tabel, gambar, pustaka"],
   ["Struktur", "bagian wajib, urutannya, dan penomoran heading"],
-  ["Judul, abstrak, kata kunci", "jumlah kata, versi bahasa Inggris, pemisah kata kunci"],
-  ["Tabel & gambar", "judul, penomoran, posisi judul, dirujuk di teks"],
-  ["Referensi", "jumlah minimal, persen mutakhir, urutan, gaya sitasi"],
+  ["Judul, abstrak, kata kunci", "jumlah kata, versi bahasa Inggris, pemisah kata kunci, singkatan di judul, sitasi di abstrak"],
+  ["Penulis", "email dan ORCID penulis"],
+  ["Tabel & gambar", "judul, penomoran, pola garis tabel, lebar dan perataan tabel, sumber, In Line with Text, resolusi gambar"],
+  ["Referensi", "jumlah minimal, persen mutakhir, urutan, gaya sitasi, Mendeley/Zotero, DOI, persen sumber primer, sumber terlarang"],
+  ["Kebersihan naskah", "bahasa, catatan kaki, teks hitam; track changes, sorotan, spasi ganda selalu dicek"],
 ];
 
 export function JurnalBaru() {

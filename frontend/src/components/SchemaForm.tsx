@@ -25,6 +25,12 @@ const LABEL_ENUM: Record<string, string> = {
   bawah: "Di bawah",
   ";": "Titik koma ( ; )",
   ",": "Koma ( , )",
+  horizontal: "Garis horizontal saja",
+  grid: "Grid penuh (semua garis)",
+  tanpa_garis: "Tanpa garis",
+  indonesia: "Bahasa Indonesia",
+  inggris: "Bahasa Inggris",
+  disarankan: "Disarankan",
 };
 const FONT_UMUM = ["Times New Roman", "Arial", "Calibri", "Cambria", "Book Antiqua", "Georgia", "Garamond", "Tahoma"];
 

@@ -19,11 +19,12 @@ mengembalikan **salinan naskah berisi komentar Word** di setiap bagian yang tida
 | Tata letak | ukuran kertas, orientasi, margin, jumlah kolom (bagian depan & isi) |
 | Format per elemen | font, ukuran, tebal/miring, kapital, perataan, spasi, indentasi, jarak paragraf. Dicek untuk judul, penulis, abstrak, kata kunci, heading, teks isi, tabel, gambar, dan daftar pustaka |
 | Struktur | bagian wajib ada & urut, nama bagian sesuai template, subbagian wajib, penomoran heading |
-| Judul / abstrak / kata kunci | jumlah kata, judul & abstract bahasa Inggris, satu paragraf, jumlah & pemisah kata kunci, huruf kecil |
+| Judul / abstrak / kata kunci | jumlah kata, judul & abstract bahasa Inggris, satu paragraf, jumlah & pemisah kata kunci, huruf kecil, singkatan di judul, sitasi di abstrak |
+| Penulis | email dan ORCID dicantumkan |
 | Paragraf | minimal/maksimal kalimat per paragraf |
-| Tabel & gambar | judul ada, penomoran berurutan, posisi judul (atas/bawah), dirujuk di teks |
-| Referensi | jumlah minimal, % referensi mutakhir, urut abjad/kemunculan, sitasi ↔ daftar pustaka (nama-tahun & numerik [1]) |
-| Naskah | jumlah kata/halaman, kata terlarang, sisa petunjuk template yang lupa dihapus |
+| Tabel & gambar | judul ada, penomoran berurutan, posisi judul (atas/bawah), dirujuk di teks, pola garis tabel (horizontal/grid, termasuk garis dari style tabel), lebar dan perataan tabel, tabel yang disisipkan sebagai gambar, keterangan sumber, gambar "In Line with Text", perataan gambar, resolusi gambar, objek melewati margin, persamaan berupa gambar dan nomornya |
+| Referensi | jumlah minimal, % referensi mutakhir, urut abjad/kemunculan, sitasi ↔ daftar pustaka (nama-tahun & numerik [1]), aplikasi manajemen referensi (Mendeley/Zotero/EndNote/sitasi Word), DOI, perkiraan % sumber primer, sumber terlarang |
+| Naskah | jumlah kata/halaman, kata terlarang, sisa petunjuk template yang lupa dihapus, bahasa naskah, track changes dan komentar lama, sorotan, teks berwarna, catatan kaki, spasi ganda, baris kosong beruntun |
 | Naratif (AI, opsional) | aturan isi dari template, mis. kelengkapan metode, research gap, kesimpulan menjawab tujuan |
 
 Temuan **WAJIB** berarti tidak sesuai aturan template. Temuan **SARAN** berarti hasil heuristik yang perlu dicek manusia.

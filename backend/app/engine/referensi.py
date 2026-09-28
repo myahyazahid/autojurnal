@@ -20,6 +20,22 @@ RX_NARATIF = re.compile(
     r"(?P<nama>[A-Z][A-Za-zÀ-ÿ'’\-]+(?:\s+(?:et\.? al\.?|dkk\.?|&|dan|and)(?:\s+[A-Z][A-Za-zÀ-ÿ'’\-]+)?)?)"
     r"\s*\((?P<tahun>(?:19|20)\d{2})[a-z]?(?:\s*[,:;][^)]*)?\)"
 )
+RX_DOI = re.compile(r"\b10\.\d{4,9}/\S+|\bdoi\b", re.I)
+# penanda artikel jurnal/prosiding: nama terbitan, volume(nomor), halaman, DOI, ISSN
+RX_PRIMER = re.compile(
+    r"jurnal|journal|proceedings?|prosiding|conference|konferensi|seminar|symposium|simposium|transactions|"
+    r"quarterly|\baccess\b|letters|magazine|annals|bulletin|"
+    # gaya IEEE: judul artikel dalam tanda kutip lalu nama terbitan
+    r"[\"“]\s*[^\"”]{8,}?[,.]?\s*[\"”]\s*[,.]?\s*(?:in:?\s+)?[A-Z][A-Za-z&]+|"
+    r"\bvol\b\.?|volume|\bno\.\s*\d|\b\d{1,4}\s*\(\s*\d{1,4}\s*\)|\bdoi\b|10\.\d{4,9}/|issn|\bpp\.\s*\d",
+    re.I,
+)
+RX_BUKAN_PRIMER = re.compile(r"skripsi|\btesis\b|thesis|disertasi|dissertation|wikipedia|blogspot|wordpress|\bblog\b", re.I)
+# kode field / content control yang ditinggalkan aplikasi manajemen referensi
+RX_MANAJER = re.compile(
+    r"ADDIN\s+(?:ZOTERO|CSL_CITATION|EN\.CITE|Mendeley|MENDELEY|PAPERS2|RW\.CITE)|MENDELEY_CITATION|^\s*CITATION\s|"
+    r"^\s*BIBLIOGRAPHY",
+)
 _BUKAN_NAMA = {
     "tahun", "pada", "sejak", "hingga", "sampai", "periode", "bulan", "dalam", "menurut", "tanggal", "the",
     "in", "on", "since", "year", "mei", "juni", "juli", "januari", "februari", "maret", "april", "agustus",
@@ -195,6 +211,7 @@ def cek_referensi(dm: DocModel, prof: Profil) -> list[Temuan]:
             if b.kunci and a.kunci and b.kunci < a.kunci:
                 out.append(tm("referensi.abjad", para=b.paras[0].i, kelompok="ref.abjad", aktual=b.kunci.title(), sebelum=a.kunci.title()))
 
+    out.extend(_cek_mutu(dm, prof, entri, jangkar))
     if not ref.cek_kecocokan_sitasi:
         return out
 
@@ -225,4 +242,37 @@ def cek_referensi(dm: DocModel, prof: Profil) -> list[Temuan]:
             for e in entri:
                 if not e.disitasi:
                     out.append(tm("referensi.tidak_disitasi", para=e.paras[0].i, kelompok="ref.tidak_disitasi"))
+    return out
+
+
+def pakai_manajer_referensi(dm: DocModel) -> bool:
+    """Ada jejak Mendeley/Zotero/EndNote/sitasi Word (kode field atau content control)."""
+    body = dm.doc.element.body
+    kode = body.xpath(".//*[local-name()='instrText']/text() | .//*[local-name()='fldSimple']/@*[local-name()='instr']"
+                      " | .//*[local-name()='sdtPr']/*[local-name()='tag']/@*[local-name()='val']")
+    if any(RX_MANAJER.search(str(k)) for k in kode):
+        return True
+    return bool(body.xpath(".//*[local-name()='sdtPr']/*[local-name()='citation' or local-name()='bibliography']"))
+
+
+def _cek_mutu(dm: DocModel, prof: Profil, entri: list[Entri], jangkar: int | None) -> list[Temuan]:
+    ref, out = prof.referensi, []
+    tm = lambda kode, **kw: KT.temuan(prof, "Referensi", kode, **kw)  # noqa: E731
+    if ref.manajer_referensi and not pakai_manajer_referensi(dm):
+        out.append(tm("referensi.manajer", para=jangkar, tingkat="wajib" if ref.manajer_referensi == "wajib" else "saran"))
+    if ref.wajib_doi:
+        for e in entri:
+            if not RX_DOI.search(e.teks):
+                out.append(tm("referensi.tanpa_doi", para=e.paras[0].i, kelompok="ref.tanpa_doi"))
+    if ref.persen_sumber_primer and len(entri) >= 3:
+        primer = sum(1 for e in entri if RX_PRIMER.search(e.teks) and not RX_BUKAN_PRIMER.search(e.teks))
+        persen = primer * 100 / len(entri)
+        if persen + 1e-9 < ref.persen_sumber_primer:
+            out.append(tm("referensi.sumber_primer", para=jangkar, jumlah=primer, total=len(entri),
+                          persen=T.angka(round(persen, 1)), persen_minimal=T.angka(ref.persen_sumber_primer)))
+    terlarang = [k.strip().lower() for k in ref.sumber_terlarang if k.strip()]
+    for e in entri:
+        kena = next((k for k in terlarang if k in e.teks.lower()), None)
+        if kena:
+            out.append(tm("referensi.sumber_terlarang", para=e.paras[0].i, kelompok="ref.terlarang", situs=kena.title()))
     return out

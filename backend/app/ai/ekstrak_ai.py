@@ -79,6 +79,9 @@ def perbaiki_dengan_ai(klien: KlienAI, prof: Profil, peta: list[dict], panduan: 
         "- null = tidak dicek. Ukuran font dalam pt, margin/kertas dalam cm, spasi_baris dalam kelipatan (1 = tunggal).\n"
         "- perataan: kiri | tengah | kanan | rata_kanan_kiri. gaya_sitasi: penulis_tahun | numerik | otomatis. "
         "urutan: abjad | kemunculan. abstrak_inggris & judul_inggris: wajib | opsional | tidak_boleh.\n"
+        "- garis_tabel: horizontal (tanpa garis vertikal) | grid | tanpa_garis. perataan_tabel & perataan_gambar: tengah | kiri. "
+        "bahasa: indonesia | inggris. manajer_referensi: wajib | disarankan. min_dpi_gambar dalam dpi. "
+        "sumber_terlarang: daftar kata seperti wikipedia, blog. Isi aturan ini hanya bila template menyebutnya.\n"
         '- "aturan_naratif": daftar {"bagian": ..., "aturan": ...} berisi aturan ISI/SUBSTANSI yang butuh pemahaman '
         "(mis. 'Pendahuluan memuat kesenjangan penelitian dan tujuan di akhir'). Tulis ringkas, spesifik, bisa dicek; "
         "jangan masukkan aturan format (font, spasi, margin). Maksimal 12.\n"

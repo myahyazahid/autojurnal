@@ -83,6 +83,12 @@ class AturanJudul(_Dasar):
     maks_kata: Optional[int] = Field(None, title="Maksimal kata judul")
     judul_inggris: Optional[Literal["wajib", "opsional", "tidak_boleh"]] = Field(None, title="Judul bahasa Inggris")
     maks_kata_inggris: Optional[int] = Field(None, title="Maksimal kata judul Inggris")
+    tanpa_singkatan: Optional[bool] = Field(None, title="Judul tanpa singkatan")
+
+
+class AturanPenulis(_Dasar):
+    wajib_email: Optional[bool] = Field(None, title="Email penulis wajib dicantumkan")
+    wajib_orcid: Optional[bool] = Field(None, title="ORCID penulis wajib dicantumkan")
 
 
 class AturanAbstrak(_Dasar):
@@ -93,6 +99,7 @@ class AturanAbstrak(_Dasar):
     abstrak_inggris: Literal["wajib", "opsional", "tidak_boleh"] = Field("opsional", title="Abstract bahasa Inggris")
     min_kata_inggris: Optional[int] = Field(None, title="Minimal kata abstract Inggris")
     maks_kata_inggris: Optional[int] = Field(None, title="Maksimal kata abstract Inggris")
+    tanpa_sitasi: Optional[bool] = Field(None, title="Abstrak tanpa sitasi")
 
 
 class AturanKataKunci(_Dasar):
@@ -115,6 +122,14 @@ class AturanNaskah(_Dasar):
     maks_halaman: Optional[int] = Field(None, title="Maksimal halaman")
     kata_terlarang: list[str] = Field(default_factory=list, title="Kata yang tidak boleh dipakai", description="mis. saya, kami")
     cek_sisa_petunjuk: bool = Field(True, title="Cek sisa petunjuk template yang belum dihapus")
+    bahasa: Optional[Literal["indonesia", "inggris"]] = Field(None, title="Bahasa naskah")
+    naskah_bersih: bool = Field(
+        True, title="Naskah bersih", description="Tanpa track changes, komentar lama, dan sorotan (highlight)"
+    )
+    teks_hitam: Optional[bool] = Field(None, title="Teks harus berwarna hitam", description="Tautan tidak ikut dicek")
+    catatan_kaki_dilarang: Optional[bool] = Field(None, title="Catatan kaki (footnote) tidak diperbolehkan")
+    cek_spasi_ganda: bool = Field(True, title="Cek spasi ganda antarkata")
+    cek_baris_kosong: bool = Field(True, title="Cek baris kosong berturut-turut")
 
 
 class AturanTabelGambar(_Dasar):
@@ -123,6 +138,18 @@ class AturanTabelGambar(_Dasar):
     wajib_dirujuk: bool = Field(True, title="Tabel/gambar wajib dirujuk di teks")
     penomoran_berurutan: bool = Field(True, title="Penomoran harus berurutan")
     wajib_judul: bool = Field(True, title="Setiap tabel/gambar wajib punya judul")
+    garis_tabel: Optional[Literal["horizontal", "grid", "tanpa_garis"]] = Field(
+        None, title="Pola garis tabel", description="Diambil dari contoh tabel di template"
+    )
+    perataan_tabel: Optional[Literal["tengah", "kiri"]] = Field(None, title="Perataan tabel di halaman")
+    tabel_selebar_halaman: Optional[bool] = Field(None, title="Lebar tabel mengikuti lebar halaman (AutoFit Window)")
+    cek_lebar_objek: bool = Field(True, title="Tabel/gambar tidak boleh melewati margin")
+    tabel_bukan_gambar: bool = Field(True, title="Tabel harus berupa tabel Word, bukan gambar")
+    wajib_sumber: Optional[bool] = Field(None, title="Tabel/gambar wajib diberi keterangan sumber")
+    perataan_gambar: Optional[Literal["tengah", "kiri"]] = Field(None, title="Perataan gambar")
+    gambar_sebaris: Optional[bool] = Field(None, title="Gambar harus “In Line with Text”")
+    min_dpi_gambar: Optional[int] = Field(None, title="Resolusi gambar minimal (dpi)")
+    persamaan_editor: Optional[bool] = Field(None, title="Persamaan ditulis dengan Equation Editor (bukan gambar)")
 
 
 class AturanReferensi(_Dasar):
@@ -135,6 +162,16 @@ class AturanReferensi(_Dasar):
     )
     urutan: Optional[Literal["abjad", "kemunculan"]] = Field(None, title="Urutan daftar pustaka")
     cek_kecocokan_sitasi: bool = Field(True, title="Cek sitasi di teks ↔ daftar pustaka")
+    manajer_referensi: Optional[Literal["wajib", "disarankan"]] = Field(
+        None, title="Aplikasi manajemen referensi", description="Mendeley, Zotero, EndNote, atau fitur sitasi Word"
+    )
+    wajib_doi: Optional[bool] = Field(None, title="Referensi mencantumkan DOI")
+    persen_sumber_primer: Optional[float] = Field(
+        None, title="Minimal persentase sumber primer (%)", description="Jurnal atau prosiding; dihitung perkiraan"
+    )
+    sumber_terlarang: list[str] = Field(
+        default_factory=list, title="Sumber yang tidak boleh dirujuk", description="mis. wikipedia, blog"
+    )
 
 
 class AturanNaratif(_Dasar):
@@ -177,6 +214,7 @@ class Profil(_Dasar):
     format: FormatPerElemen = Field(default_factory=FormatPerElemen, title="Format per elemen")
     struktur: Struktur = Field(default_factory=Struktur, title="Struktur naskah")
     judul: AturanJudul = Field(default_factory=AturanJudul, title="Judul")
+    penulis: AturanPenulis = Field(default_factory=AturanPenulis, title="Penulis")
     abstrak: AturanAbstrak = Field(default_factory=AturanAbstrak, title="Abstrak")
     kata_kunci: AturanKataKunci = Field(default_factory=AturanKataKunci, title="Kata kunci")
     paragraf: AturanParagraf = Field(default_factory=AturanParagraf, title="Paragraf")
