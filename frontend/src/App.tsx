@@ -11,6 +11,7 @@ import Komentar from "./pages/Komentar";
 import Masuk from "./pages/Masuk";
 import Pengaturan from "./pages/Pengaturan";
 import Pengguna from "./pages/Pengguna";
+import { AlatResizer, BerandaResizer } from "./pages/Resizer";
 import { DetailCek, Riwayat } from "./pages/Riwayat";
 
 function LayarMemuat() {
@@ -43,6 +44,8 @@ export default function App() {
       <Route path="/jurnal" element={<Wajib><DaftarJurnal /></Wajib>} />
       <Route path="/jurnal/baru" element={<Wajib admin><JurnalBaru /></Wajib>} />
       <Route path="/jurnal/:id" element={<Wajib><EditJurnal /></Wajib>} />
+      <Route path="/resizer" element={<Wajib><BerandaResizer /></Wajib>} />
+      <Route path="/resizer/:jenis" element={<Wajib><AlatResizer /></Wajib>} />
       <Route path="/akun" element={<Wajib><Akun /></Wajib>} />
       <Route path="/komentar" element={<Wajib admin><Komentar /></Wajib>} />
       <Route path="/pengguna" element={<Wajib admin><Pengguna /></Wajib>} />

@@ -1,4 +1,4 @@
-import { BookOpen, ChevronsUpDown, FileCheck2, History, LogOut, Menu, MessageSquareText, Settings, UserRound, Users, X, type LucideIcon } from "lucide-react";
+import { BookOpen, ChevronsUpDown, FileCheck2, History, LogOut, Menu, MessageSquareText, Settings, Shrink, UserRound, Users, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
@@ -16,6 +16,7 @@ const MENU: Menu[] = [
   { ke: "/", label: "Cek Naskah", ikon: FileCheck2, akhir: true },
   { ke: "/riwayat", label: "Riwayat", ikon: History },
   { ke: "/jurnal", label: "Profil Jurnal", ikon: BookOpen },
+  { ke: "/resizer", label: "Resizer", ikon: Shrink },
 ];
 const MENU_ADMIN: Menu[] = [
   { ke: "/komentar", label: "Komentar", ikon: MessageSquareText },

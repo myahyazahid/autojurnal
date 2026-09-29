@@ -30,6 +30,14 @@ mengembalikan **salinan naskah berisi komentar Word** di setiap bagian yang tida
 Temuan **WAJIB** berarti tidak sesuai aturan template. Temuan **SARAN** berarti hasil heuristik yang perlu dicek manusia.
 Masalah yang sama tidak membanjiri naskah: maksimal N komentar per masalah (bisa diatur), sisanya diringkas.
 
+## Resizer
+
+Menu **Resizer** mengecilkan berkas PDF, Word (.docx), Excel (.xlsx), dan gambar (JPG, PNG, WebP, BMP, TIFF) untuk semua pengguna.
+Tingkat **Ringan** tidak menurunkan kualitas yang terlihat (mis. membuang font sematan di Word), **Seimbang** mengompres gambar
+secukupnya, **Kuat** sekecil mungkin. Dengan **target ukuran**, kompresi dinaikkan bertahap sampai berkas di bawah target.
+Hasil tidak pernah lebih besar dari aslinya, satu berkas maksimal 40 MB, diproses satu per satu, dan terhapus otomatis setelah 6 jam.
+PDF memakai pikepdf, gambar memakai Pillow.
+
 ## Akun, peran & login Google
 
 | Peran | Bisa |

@@ -189,6 +189,26 @@ export interface KatalogKomentar {
   maks_panjang: number;
 }
 
+export interface HasilResizer {
+  token: string;
+  nama: string;
+  awal_kb: number;
+  akhir_kb: number;
+  hemat_persen: number;
+  level: string;
+  target_kb: number | null;
+  tercapai: boolean | null;
+  sudah_optimal: boolean;
+  format_berubah: boolean;
+}
+
+export interface OpsiResizer {
+  level: "ringan" | "seimbang" | "kuat";
+  target_kb?: number;
+  format_keluar?: "sama" | "jpeg" | "webp" | "png";
+  maks_sisi?: number;
+}
+
 export const SESI_HABIS = "autojurnal:sesi-habis";
 
 async function minta<T>(url: string, init?: RequestInit): Promise<T> {
@@ -260,6 +280,16 @@ export const api = {
   urlUnduh: (id: string, kecil = false) => `/api/cek/${id}/unduh${kecil ? "?kecil=true" : ""}`,
   kecilkan: (id: string) => minta<Cek>(`/api/cek/${id}/kecilkan`, { method: "POST" }),
   urlZip: (ids: string[]) => `/api/unduh-zip?${ids.map((i) => `id=${i}`).join("&")}`,
+
+  resizer: (jenis: string, berkas: File, o: OpsiResizer) => {
+    const isi: Record<string, string | Blob> = { berkas, level: o.level };
+    if (o.target_kb) isi.target_kb = String(o.target_kb);
+    if (o.format_keluar) isi.format_keluar = o.format_keluar;
+    if (o.maks_sisi) isi.maks_sisi = String(o.maks_sisi);
+    return minta<HasilResizer>(`/api/resizer/${jenis}`, { method: "POST", body: form(isi) });
+  },
+  urlResizer: (token: string) => `/api/resizer/unduh/${token}`,
+  urlResizerZip: (tokens: string[]) => `/api/resizer/zip?${tokens.map((t) => `t=${t}`).join("&")}`,
 
   pengaturan: () => minta<Pengaturan>("/api/pengaturan"),
   simpanPengaturan: (data: Partial<Pengaturan> & { ai_api_key?: string; hapus_api_key?: boolean }) =>

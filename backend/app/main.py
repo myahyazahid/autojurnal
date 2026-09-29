@@ -34,6 +34,7 @@ from .db import (Jurnal, Pengecekan, Pengguna, baca_pengaturan, engine, iso, sek
 from .engine import katalog
 from .engine.ekstrak import ekstrak_template
 from .engine.kecilkan import kecilkan_berkas, rincian
+from .engine.resizer import JENIS as JENIS_RESIZER, GalatResizer, proses as proses_resizer
 from .engine.layanan import cek_naskah
 from .engine.profil import Profil, skema_json
 
@@ -493,6 +494,74 @@ def hapus_cek(cid: str, u: Pengguna = Pengguna_, s: Session = Depends(sesi)):
     s.delete(c)
     s.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# resizer: kecilkan PDF, Word, Excel, gambar (semua pengguna)
+
+MAKS_RESIZER_MB = 40
+KUNCI_RESIZER = asyncio.Semaphore(1)  # server kecil: satu berkas diproses dalam satu waktu
+MIME = {".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+
+
+def _hasil_resizer(u: Pengguna, token: str) -> tuple[Path, str]:
+    if not re.fullmatch(r"[0-9a-f]{32}", token):
+        raise HTTPException(404, "Berkas tidak ditemukan.")
+    berkas = DIR_SEMENTARA / f"rz_{u.id}_{token}"
+    meta = DIR_SEMENTARA / f"rz_{u.id}_{token}.json"
+    if not berkas.exists() or not meta.exists():
+        raise HTTPException(404, "Berkas sudah tidak tersedia (hasil Resizer disimpan 6 jam).")
+    return berkas, json.loads(meta.read_text(encoding="utf-8"))["nama"]
+
+
+@app.post("/api/resizer/{jenis}")
+async def resizer(jenis: str, berkas: UploadFile = File(...), level: str = Form("seimbang"),
+                  target_kb: Optional[int] = Form(None), format_keluar: str = Form("sama"),
+                  maks_sisi: Optional[int] = Form(None), u: Pengguna = Pengguna_):
+    if jenis not in JENIS_RESIZER:
+        raise HTTPException(404, "Jenis berkas tidak dikenal.")
+    data = await berkas.read(MAKS_RESIZER_MB * 1024 * 1024 + 1)
+    if len(data) > MAKS_RESIZER_MB * 1024 * 1024:
+        raise HTTPException(413, f"Berkas melebihi {MAKS_RESIZER_MB} MB.")
+    if not data:
+        raise HTTPException(400, "Berkas kosong.")
+    async with KUNCI_RESIZER:
+        try:
+            hasil, nama, laporan = await asyncio.to_thread(
+                proses_resizer, jenis, berkas.filename or "berkas", data, level, target_kb,
+                format_keluar=format_keluar, maks_sisi=maks_sisi)
+        except GalatResizer as e:
+            raise HTTPException(400, str(e))
+        except Exception:
+            raise HTTPException(400, "Berkas tidak bisa diproses. Pastikan berkasnya tidak rusak.")
+    token = uuid.uuid4().hex
+    (DIR_SEMENTARA / f"rz_{u.id}_{token}").write_bytes(hasil)
+    (DIR_SEMENTARA / f"rz_{u.id}_{token}.json").write_text(json.dumps({"nama": nama}), encoding="utf-8")
+    return {"token": token, "nama": nama, **laporan}
+
+
+@app.get("/api/resizer/unduh/{token}")
+def resizer_unduh(token: str, u: Pengguna = Pengguna_):
+    berkas, nama = _hasil_resizer(u, token)
+    return FileResponse(berkas, filename=nama, media_type=MIME.get(Path(nama).suffix.lower(), "application/octet-stream"))
+
+
+@app.get("/api/resizer/zip")
+def resizer_zip(t: list[str] = Query(...), u: Pengguna = Pengguna_):
+    buf, dipakai = io.BytesIO(), set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        for token in t[:50]:
+            berkas, nama = _hasil_resizer(u, token)
+            dasar, ekst, n = Path(nama).stem, Path(nama).suffix, 1
+            while nama in dipakai:
+                n += 1
+                nama = f"{dasar} ({n}){ekst}"
+            dipakai.add(nama)
+            z.write(berkas, nama)
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": 'attachment; filename="hasil_resizer_autojurnal.zip"'})
 
 
 # ---------------------------------------------------------------------------

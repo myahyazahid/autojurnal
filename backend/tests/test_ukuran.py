@@ -73,7 +73,7 @@ def test_kecilkan_gambar_bila_masih_besar(tmp_path):
     assert len(d.inline_shapes) == 1
 
 
-def test_api_kecilkan_dan_unduh(tmp_path):
+def test_api_kecilkan_dan_unduh(tmp_path, template_docx):
     from fastapi.testclient import TestClient
 
     from app.main import app
@@ -83,6 +83,10 @@ def test_api_kecilkan_dan_unduh(tmp_path):
     naskah.write_bytes(_naskah_besar(tmp_path))
     with TestClient(app) as c:
         _admin(c)
+        if not c.get("/api/jurnal").json():
+            with open(template_docx, "rb") as f:
+                e = c.post("/api/jurnal/ekstrak", files={"template": ("t.docx", f)}).json()
+            c.post("/api/jurnal", json={"nama": "Uji Ukuran", "profil": e["profil"]})
         j = c.get("/api/jurnal").json()[0]
         with open(naskah, "rb") as f:
             r = c.post("/api/cek", files={"naskah": ("besar.docx", f)}, data={"jurnal_id": j["id"]}).json()

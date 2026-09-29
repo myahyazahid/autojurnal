@@ -1,4 +1,4 @@
-"""Pengecil ukuran .docx.
+"""Pengecil ukuran berkas Office (.docx, .xlsx).
 
 Tahap tanpa kehilangan kualitas selalu dijalankan: buang font yang disematkan (penyebab utama berkas besar)
 dan gambar pratinjau (thumbnail). Bila masih di atas target, gambar dikompres bertahap mengikuti ukuran
@@ -19,7 +19,7 @@ W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 REL = "http://schemas.openxmlformats.org/package/2006/relationships"
 CT = "http://schemas.openxmlformats.org/package/2006/content-types"
 EMU_PER_INCI = 914400
-MEDIA = re.compile(r"^word/media/[^/]+\.(png|jpe?g|bmp|gif|tiff?)$", re.I)
+MEDIA = re.compile(r"^(?:word|xl|ppt)/media/[^/]+\.(png|jpe?g|bmp|gif|tiff?)$", re.I)
 PART_ISI = re.compile(r"^word/(document|header\d*|footer\d*|footnotes|endnotes|comments)\.xml$")
 
 
@@ -143,21 +143,25 @@ def _ganti_nama(p: Paket, lama: str, baru: str, mime: str) -> None:
     p.tulis_xml("[Content_Types].xml", ct)
 
 
-def _kompres(p: Paket, dpi: int, kualitas: int, palet: bool, ke_jpeg: bool) -> None:
+def _kompres(p: Paket, dpi: int, kualitas: int, palet: bool, ke_jpeg: bool, maks_px: int = 2400) -> None:
     tampil = _lebar_tampil(p)
     for nama in [n for n in list(p.isi) if MEDIA.match(n)]:
         asli = p.isi[nama]
+        lebar_in = tampil.get(nama)
         try:
             img = Image.open(io.BytesIO(asli))
+            format_asli = img.format
+            # lebar sasaran: dari ukuran tampil di dokumen; bila tidak diketahui (mis. Excel), batasi sisi terpanjang
+            target = max(64, int(lebar_in * dpi)) if lebar_in else None
+            if format_asli == "JPEG":  # dekode langsung di resolusi kecil agar hemat memori
+                img.draft("RGB", (target or maks_px, target or maks_px))
             img.load()
         except Exception:
             continue
-        format_asli = img.format
-        lebar_in = tampil.get(nama)
-        if lebar_in:
-            target = max(64, int(lebar_in * dpi))
-            if img.width > target * 1.05:
-                img = img.resize((target, max(1, round(img.height * target / img.width))), Image.LANCZOS)
+        if target and img.width > target * 1.05:
+            img = img.resize((target, max(1, round(img.height * target / img.width))), Image.LANCZOS)
+        elif not target and max(img.size) > maks_px:
+            img.thumbnail((maks_px, maks_px), Image.LANCZOS)
         transparan = img.mode in ("RGBA", "LA", "P") and "transparency" in img.info or img.mode in ("RGBA", "LA")
         kandidat: list[tuple[bytes, str]] = []
         if format_asli == "JPEG":
@@ -182,15 +186,22 @@ def _kompres(p: Paket, dpi: int, kualitas: int, palet: bool, ke_jpeg: bool) -> N
 
 
 TAHAP_GAMBAR = [
-    ("Mengompres gambar (220 dpi)", dict(dpi=220, kualitas=85, palet=False, ke_jpeg=False)),
-    ("Mengompres gambar (150 dpi)", dict(dpi=150, kualitas=78, palet=True, ke_jpeg=False)),
-    ("Mengubah gambar besar menjadi JPEG", dict(dpi=150, kualitas=75, palet=True, ke_jpeg=True)),
-    ("Mengompres gambar lebih kuat (110 dpi)", dict(dpi=110, kualitas=65, palet=True, ke_jpeg=True)),
+    ("Mengompres gambar (220 dpi)", dict(dpi=220, kualitas=85, palet=False, ke_jpeg=False, maks_px=2400)),
+    ("Mengompres gambar (150 dpi)", dict(dpi=150, kualitas=78, palet=True, ke_jpeg=False, maks_px=2000)),
+    ("Mengubah gambar besar menjadi JPEG", dict(dpi=150, kualitas=75, palet=True, ke_jpeg=True, maks_px=1600)),
+    ("Mengompres gambar lebih kuat (110 dpi)", dict(dpi=110, kualitas=65, palet=True, ke_jpeg=True, maks_px=1400)),
 ]
+# tanpa target: level pilihan pengguna di Resizer
+TAHAP_LEVEL = {
+    "ringan": [],
+    "seimbang": [("Mengompres gambar (150 dpi)", dict(dpi=150, kualitas=80, palet=False, ke_jpeg=False, maks_px=2000))],
+    "kuat": [("Mengompres gambar kuat (110 dpi)", dict(dpi=110, kualitas=65, palet=True, ke_jpeg=True, maks_px=1400))],
+}
 
 
-def kecilkan(sumber: bytes, target_kb: int = 1900) -> tuple[bytes, dict]:
-    """Kembalikan (berkas baru, laporan). Tahap gambar hanya dijalankan selama ukuran masih di atas target."""
+def kecilkan(sumber: bytes, target_kb: int | None = 1900, level: str = "seimbang") -> tuple[bytes, dict]:
+    """Kembalikan (berkas baru, laporan). Dengan target: tahap gambar berjalan selama ukuran masih di atas target.
+    Tanpa target: tahap gambar mengikuti level (ringan = tanpa menurunkan kualitas)."""
     p = Paket(sumber)
     awal = len(sumber)
     langkah: list[dict] = []
@@ -203,13 +214,13 @@ def kecilkan(sumber: bytes, target_kb: int = 1900) -> tuple[bytes, dict]:
     _buang_font(p)
     _buang_thumbnail(p)
     data = catat("Menghapus font yang disematkan dan gambar pratinjau")
-    for nama, opsi in TAHAP_GAMBAR:
-        if len(data) <= target_kb * 1024:
+    for nama, opsi in (TAHAP_GAMBAR if target_kb else TAHAP_LEVEL[level]):
+        if target_kb and len(data) <= target_kb * 1024:
             break
         _kompres(p, **opsi)
         data = catat(nama)
     return data, {"awal_kb": round(awal / 1024), "akhir_kb": round(len(data) / 1024), "target_kb": target_kb,
-                  "tercapai": len(data) <= target_kb * 1024, "langkah": langkah}
+                  "tercapai": len(data) <= target_kb * 1024 if target_kb else None, "langkah": langkah}
 
 
 def kecilkan_berkas(sumber: Path, tujuan: Path, target_kb: int = 1900) -> dict:
