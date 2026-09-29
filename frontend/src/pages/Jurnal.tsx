@@ -1,11 +1,12 @@
 import { Check, Download, FileJson, FileText, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, relatif, type HasilEkstrak, type JurnalRingkas, type Profil, type Status } from "../lib/api";
+import { api, relatif, type HasilEkstrak, type JurnalRingkas, type Profil, type Progres, type Status } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
 import EditorProfil, { PetaTemplate } from "../components/EditorProfil";
 import Membaca, { minimal } from "../components/Membaca";
+import ProgresUnggah from "../components/ProgresUnggah";
 import {
   IkonBerkas, JudulHalaman, Kartu, KepalaKartu, Kosong, Lencana, MemuatHalaman, Pesan, Sakelar, TautanTombol, Tombol, ZonaUnggah,
 } from "../components/ui";
@@ -140,21 +141,29 @@ export function DaftarJurnal() {
 
 /* ---------------------------------------------------------- baca template */
 
-function OpsiBaca({ status, onBaca, memuat, labelTombol, adaBerkas = true }: {
+const LANGKAH_TEMPLATE = ["Membaca tata letak halaman", "Mengenali judul, abstrak, dan heading", "Mencatat format tiap elemen",
+  "Mengambil aturan dari kalimat petunjuk"];
+const LANGKAH_TEMPLATE_AI = [...LANGKAH_TEMPLATE, "AI meninjau dan melengkapi aturan"];
+
+function OpsiBaca({ status, onBaca, memuat, labelTombol, adaBerkas = true, progres }: {
   status: Status | null; onBaca: (pakaiAI: boolean, panduan: string) => void; memuat: boolean; labelTombol: string; adaBerkas?: boolean;
+  progres?: Progres | null;
 }) {
   const [pakaiAI, setPakaiAI] = useState(false);
   const [panduan, setPanduan] = useState("");
   const idPanduan = useId();
+  const mengunggah = progres !== undefined && progres?.tahap !== "proses";
   if (memuat)
     return (
-      <Membaca
-        mendatar
-        ukuran="kecil"
-        judul={pakaiAI ? "Membaca template (bot + AI)…" : "Membaca template…"}
-        langkah={["Membaca tata letak halaman", "Mengenali judul, abstrak, dan heading", "Mencatat format tiap elemen",
-          "Mengambil aturan dari kalimat petunjuk", ...(pakaiAI ? ["AI meninjau dan melengkapi aturan"] : [])]}
-      />
+      <div className="space-y-4">
+        <Membaca
+          mendatar
+          ukuran="kecil"
+          judul={mengunggah ? "Mengunggah template…" : pakaiAI ? "Membaca template (bot + AI)…" : "Membaca template…"}
+          langkah={mengunggah ? undefined : pakaiAI ? LANGKAH_TEMPLATE_AI : LANGKAH_TEMPLATE}
+        />
+        {progres !== undefined && <ProgresUnggah ringkas progres={progres} labelProses={pakaiAI ? "Dibaca bot dan AI" : "Dibaca bot"} />}
+      </div>
     );
   return (
     <div className="space-y-4">
@@ -191,8 +200,9 @@ function InfoAI({ h }: { h: HasilEkstrak | null }) {
 }
 
 /** Kartu template di atas editor: nama berkas + tombol untuk membuka opsi baca ulang. */
-function KartuTemplate({ nama, href, status, onBaca, memuat, gantiBerkas }: {
+function KartuTemplate({ nama, href, status, onBaca, memuat, gantiBerkas, progres }: {
   nama: string; href?: string; status: Status | null; onBaca: (pakaiAI: boolean, panduan: string) => void; memuat: boolean; gantiBerkas?: () => void;
+  progres?: Progres | null;
 }) {
   const [buka, setBuka] = useState(false);
   return (
@@ -212,7 +222,7 @@ function KartuTemplate({ nama, href, status, onBaca, memuat, gantiBerkas }: {
       </div>
       {buka && (
         <div className="border-t border-line bg-panel-2 px-5 py-4">
-          <OpsiBaca status={status} onBaca={onBaca} memuat={memuat} labelTombol="Baca ulang sekarang" />
+          <OpsiBaca status={status} onBaca={onBaca} memuat={memuat} labelTombol="Baca ulang sekarang" progres={progres} />
         </div>
       )}
     </Kartu>
@@ -273,6 +283,7 @@ export function JurnalBaru() {
   const [nama, setNama] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
   const [memuat, setMemuat] = useState(false);
+  const [progres, setProgres] = useState<Progres | null>(null);
   const [menyimpan, setMenyimpan] = useState(false);
 
   useEffect(() => {
@@ -282,8 +293,9 @@ export function JurnalBaru() {
   async function baca(pakaiAI: boolean, panduan: string) {
     if (!berkas) return;
     setMemuat(true);
+    setProgres(null);
     try {
-      const h = await minimal(api.ekstrak(berkas, pakaiAI, panduan));
+      const h = await minimal(api.ekstrak(berkas, pakaiAI, panduan, setProgres));
       setHasil(h);
       setProfil(h.profil);
       if (!nama) setNama(berkas.name.replace(/\.docx$/i, "").replace(/template/i, "").replace(/[_-]+/g, " ").trim() || "Jurnal baru");
@@ -322,7 +334,7 @@ export function JurnalBaru() {
           nama={nama} setNama={setNama} deskripsi={deskripsi} setDeskripsi={setDeskripsi} profil={profil} setProfil={setProfil}
           atas={
             <>
-              <KartuTemplate nama={berkas.name} status={status} onBaca={baca} memuat={memuat} gantiBerkas={gantiBerkas} />
+              <KartuTemplate nama={berkas.name} status={status} onBaca={baca} memuat={memuat} gantiBerkas={gantiBerkas} progres={progres} />
               <InfoAI h={hasil} />
               <PetaTemplate peta={hasil.peta} />
             </>
@@ -343,7 +355,7 @@ export function JurnalBaru() {
               ) : (
                 <ZonaUnggah terima=".docx,.dotx" label="Seret template .docx ke sini" sub="atau klik untuk memilih berkas" pilih={(f) => setBerkas(f[0])} />
               )}
-              <OpsiBaca status={status} onBaca={baca} memuat={memuat} labelTombol="Baca template" adaBerkas={!!berkas} />
+              <OpsiBaca status={status} onBaca={baca} memuat={memuat} labelTombol="Baca template" adaBerkas={!!berkas} progres={progres} />
             </div>
           </Kartu>
           <Kartu>

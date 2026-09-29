@@ -3,8 +3,9 @@ import { useEffect, useId, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import IkonJenis, { type JenisBerkas } from "../components/IkonJenis";
 import Membaca from "../components/Membaca";
+import ProgresUnggah from "../components/ProgresUnggah";
 import { JudulHalaman, Kartu, Lencana, Pesan, Sakelar, TautanTombol, Tombol, ZonaUnggah } from "../components/ui";
-import { api, type HasilResizer, type OpsiResizer } from "../lib/api";
+import { api, type HasilResizer, type OpsiResizer, type Progres } from "../lib/api";
 
 const MAKS_MB = 40;
 
@@ -84,10 +85,11 @@ interface Baris {
   status: "menunggu" | "proses" | "selesai" | "gagal";
   hasil?: HasilResizer;
   galat?: string;
+  progres?: Progres | null;
 }
 
 function StatusBaris({ b }: { b: Baris }) {
-  if (b.status === "proses") return <span className="text-xs font-medium text-brand-tinta">Mengecilkan…</span>;
+  if (b.status === "proses") return <div className="mt-1 max-w-sm"><ProgresUnggah ringkas progres={b.progres ?? null} labelProses="Mengecilkan di server" /></div>;
   if (b.status === "gagal") return <span className="flex items-start gap-1 text-xs text-bahaya"><CircleAlert className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />{b.galat}</span>;
   if (b.status === "selesai" && b.hasil) {
     const h = b.hasil;
@@ -164,9 +166,10 @@ export function AlatResizer() {
     for (let i = 0; i < daftar.length; i++) {
       const b = daftar[i];
       setKe(i + 1);
-      setBaris((q) => q.map((x) => (x.id === b.id ? { ...x, status: "proses" } : x)));
+      setBaris((q) => q.map((x) => (x.id === b.id ? { ...x, status: "proses", progres: null } : x)));
       try {
-        const h = await api.resizer(j, b.berkas, opsi);
+        const catat = (p: Progres) => setBaris((q) => q.map((x) => (x.id === b.id ? { ...x, progres: p } : x)));
+        const h = await api.resizer(j, b.berkas, opsi, catat);
         setBaris((q) => q.map((x) => (x.id === b.id ? { ...x, status: "selesai", hasil: h } : x)));
       } catch (e) {
         setBaris((q) => q.map((x) => (x.id === b.id ? { ...x, status: "gagal", galat: (e as Error).message } : x)));
@@ -178,6 +181,7 @@ export function AlatResizer() {
   const totalAwal = selesai.reduce((a, b) => a + b.hasil!.awal_kb, 0);
   const totalAkhir = selesai.reduce((a, b) => a + b.hasil!.akhir_kb, 0);
   const jumlahProses = baris.filter((b) => b.status === "menunggu" || b.status === "proses").length;
+  const tahap = baris.find((b) => b.status === "proses")?.progres?.tahap;
 
   return (
     <>
@@ -200,7 +204,12 @@ export function AlatResizer() {
           </div>
           {jalan && (
             <div className="border-t border-line bg-panel-2 px-4 py-4 sm:px-5">
-              <Membaca mendatar ukuran="kecil" judul={`Mengecilkan berkas ${ke} dari ${ke + jumlahProses - 1}…`} langkah={info.langkah} />
+              <Membaca
+                mendatar
+                ukuran="kecil"
+                judul={`${tahap === "proses" ? "Mengecilkan" : "Mengunggah"} berkas ${ke} dari ${ke + jumlahProses - 1}…`}
+                langkah={tahap === "proses" ? info.langkah : undefined}
+              />
             </div>
           )}
           {baris.length > 0 && (

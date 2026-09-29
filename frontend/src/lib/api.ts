@@ -227,6 +227,43 @@ async function minta<T>(url: string, init?: RequestInit): Promise<T> {
   return r.json() as Promise<T>;
 }
 
+/** Tahap unggahan: "unggah" selama byte dikirim, "proses" setelah terkirim sampai server menjawab. */
+export interface Progres {
+  tahap: "unggah" | "proses";
+  terkirim: number;
+  total: number;
+}
+
+/** Seperti minta(), tetapi lewat XMLHttpRequest agar progres unggah bisa dilaporkan (fetch tidak bisa). */
+function mintaUnggah<T>(url: string, body: FormData, onProgres?: (p: Progres) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    let total = 0;
+    x.open("POST", url);
+    x.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      total = e.total;
+      onProgres?.({ tahap: e.loaded >= e.total ? "proses" : "unggah", terkirim: e.loaded, total: e.total });
+    };
+    x.upload.onload = () => onProgres?.({ tahap: "proses", terkirim: total, total });
+    x.onload = () => {
+      let data: unknown = null;
+      try {
+        data = JSON.parse(x.responseText);
+      } catch {
+        /* balasan bukan JSON */
+      }
+      if (x.status >= 200 && x.status < 300) return resolve(data as T);
+      if (x.status === 401 && !url.startsWith("/api/auth/")) window.dispatchEvent(new Event(SESI_HABIS));
+      const detail = (data as { detail?: unknown } | null)?.detail;
+      reject(new Error(detail ? (typeof detail === "string" ? detail : JSON.stringify(detail)) : `Gagal (HTTP ${x.status})`));
+    };
+    x.onerror = () => reject(new Error("Koneksi terputus saat mengirim berkas. Periksa internet lalu coba lagi."));
+    x.onabort = () => reject(new Error("Pengiriman dibatalkan."));
+    x.send(body);
+  });
+}
+
 const json = (method: string, body: unknown): RequestInit => ({
   method,
   headers: { "Content-Type": "application/json" },
@@ -257,8 +294,8 @@ export const api = {
 
   daftarJurnal: () => minta<JurnalRingkas[]>("/api/jurnal"),
   jurnal: (id: number) => minta<JurnalRingkas & { profil: Profil }>(`/api/jurnal/${id}`),
-  ekstrak: (template: File, pakai_ai: boolean, panduan: string) =>
-    minta<HasilEkstrak>("/api/jurnal/ekstrak", { method: "POST", body: form({ template, pakai_ai, panduan }) }),
+  ekstrak: (template: File, pakai_ai: boolean, panduan: string, onProgres?: (p: Progres) => void) =>
+    mintaUnggah<HasilEkstrak>("/api/jurnal/ekstrak", form({ template, pakai_ai, panduan }), onProgres),
   ekstrakUlang: (id: number, pakai_ai: boolean, panduan: string) =>
     minta<HasilEkstrak>(`/api/jurnal/${id}/ekstrak-ulang`, { method: "POST", body: form({ pakai_ai, panduan }) }),
   buatJurnal: (data: { nama: string; deskripsi: string; profil: Profil; token_template?: string; template_nama?: string }) =>
@@ -272,8 +309,8 @@ export const api = {
     minta<KomentarJurnal>(`/api/jurnal/${id}/komentar`, json("PUT", { teks, mati })),
   imporJurnal: (berkas: File) => minta<JurnalRingkas>("/api/jurnal/impor", { method: "POST", body: form({ berkas }) }),
 
-  cek: (naskah: File, jurnal_id: number, pakai_ai: boolean) =>
-    minta<Cek>("/api/cek", { method: "POST", body: form({ naskah, jurnal_id, pakai_ai }) }),
+  cek: (naskah: File, jurnal_id: number, pakai_ai: boolean, onProgres?: (p: Progres) => void) =>
+    mintaUnggah<Cek>("/api/cek", form({ naskah, jurnal_id, pakai_ai }), onProgres),
   riwayat: (semua = false) => minta<Cek[]>(`/api/cek${semua ? "?semua=true" : ""}`),
   detailCek: (id: string) => minta<Cek>(`/api/cek/${id}`),
   hapusCek: (id: string) => minta<{ ok: boolean }>(`/api/cek/${id}`, { method: "DELETE" }),
@@ -281,12 +318,12 @@ export const api = {
   kecilkan: (id: string) => minta<Cek>(`/api/cek/${id}/kecilkan`, { method: "POST" }),
   urlZip: (ids: string[]) => `/api/unduh-zip?${ids.map((i) => `id=${i}`).join("&")}`,
 
-  resizer: (jenis: string, berkas: File, o: OpsiResizer) => {
+  resizer: (jenis: string, berkas: File, o: OpsiResizer, onProgres?: (p: Progres) => void) => {
     const isi: Record<string, string | Blob> = { berkas, level: o.level };
     if (o.target_kb) isi.target_kb = String(o.target_kb);
     if (o.format_keluar) isi.format_keluar = o.format_keluar;
     if (o.maks_sisi) isi.maks_sisi = String(o.maks_sisi);
-    return minta<HasilResizer>(`/api/resizer/${jenis}`, { method: "POST", body: form(isi) });
+    return mintaUnggah<HasilResizer>(`/api/resizer/${jenis}`, form(isi), onProgres);
   },
   urlResizer: (token: string) => `/api/resizer/unduh/${token}`,
   urlResizerZip: (tokens: string[]) => `/api/resizer/zip?${tokens.map((t) => `t=${t}`).join("&")}`,

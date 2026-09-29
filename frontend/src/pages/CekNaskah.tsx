@@ -1,19 +1,24 @@
 import { ChevronRight, CircleCheck, CircleX, FolderDown, LoaderCircle, Plus, ShieldCheck, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, relatif, type Cek, type JurnalRingkas, type Status } from "../lib/api";
+import { api, relatif, type Cek, type JurnalRingkas, type Progres, type Status } from "../lib/api";
 import { namaDepan, useAuth } from "../lib/auth";
 import HasilCek from "../components/HasilCek";
 import Membaca, { minimal } from "../components/Membaca";
+import ProgresUnggah from "../components/ProgresUnggah";
 import {
   IkonBerkas, JudulHalaman, Kartu, Kerangka, Kosong, Lencana, LencanaScope, Pesan, Sakelar, TautanTombol, Tombol, ZonaUnggah,
 } from "../components/ui";
+
+const LANGKAH_CEK = ["Membaca tata letak dan format", "Memeriksa struktur dan judul bagian", "Menghitung kata, halaman, dan kata kunci", "Mencocokkan sitasi dengan daftar pustaka", "Memeriksa tabel dan gambar", "Menulis komentar ke naskah"];
+const LANGKAH_CEK_AI = [...LANGKAH_CEK, "AI menilai aturan isi dan Focus & Scope"];
 
 interface Antrian {
   berkas: File;
   status: "menunggu" | "proses" | "selesai" | "gagal";
   hasil?: Cek;
   galat?: string;
+  progres?: Progres | null;
 }
 
 function sapaan(): string {
@@ -122,14 +127,15 @@ export default function CekNaskah() {
     for (let i = 0; i < daftar.length; i++) {
       if (daftar[i].status === "selesai") continue;
       setDibuka(i);
-      setAntrian((q) => q.map((a, j) => (j === i ? { ...a, status: "proses" } : a)));
+      setAntrian((q) => q.map((a, j) => (j === i ? { ...a, status: "proses", progres: null } : a)));
       if (pertama) {
         pertama = false;
         const halus = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         requestAnimationFrame(() => refHasil.current?.scrollIntoView({ behavior: halus ? "smooth" : "auto", block: "start" }));
       }
       try {
-        const hasil = await minimal(api.cek(daftar[i].berkas, Number(pilihan), pakaiAI && aiBisa));
+        const catat = (p: Progres) => setAntrian((q) => q.map((a, j) => (j === i ? { ...a, progres: p } : a)));
+        const hasil = await minimal(api.cek(daftar[i].berkas, Number(pilihan), pakaiAI && aiBisa, catat));
         setAntrian((q) => q.map((a, j) => (j === i ? { ...a, status: hasil.status === "gagal" ? "gagal" : "selesai", hasil, galat: hasil.pesan_galat } : a)));
       } catch (e) {
         setAntrian((q) => q.map((a, j) => (j === i ? { ...a, status: "gagal", galat: (e as Error).message } : a)));
@@ -207,7 +213,7 @@ export default function CekNaskah() {
                               <span className="block truncate font-semibold text-ink">{a.berkas.name}</span>
                               <span className="flex items-center gap-1.5 text-xs text-ink-2">
                                 {a.status === "menunggu" && `${ukuran(a.berkas.size)} · menunggu`}
-                                {a.status === "proses" && <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-brand" aria-hidden /> sedang diperiksa…</>}
+                                {a.status === "proses" && <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-brand" aria-hidden /> {a.progres?.tahap === "proses" ? "sedang diperiksa…" : `mengunggah ${a.progres?.total ? Math.floor((a.progres.terkirim * 100) / a.progres.total) : 0}%`}</>}
                                 {a.status === "gagal" && <><CircleX className="h-3.5 w-3.5 text-bahaya" aria-hidden /> gagal diperiksa</>}
                                 {a.status === "selesai" && r && <><CircleCheck className="h-3.5 w-3.5 text-ok" aria-hidden /> {r.masalah} masalah, {r.wajib} wajib</>}
                               </span>
@@ -300,12 +306,19 @@ export default function CekNaskah() {
               </Pesan>
             ) : aktif?.status === "proses" ? (
               <Kartu className="px-6 py-10">
-                <Membaca
-                  ukuran="besar"
-                  judul={`Memeriksa ${aktif.berkas.name}`}
-                  sub={`Bot membaca naskah sesuai aturan template${pakaiAI && aiBisa ? ", lalu AI menilai substansinya" : ""}.`}
-                  langkah={pakaiAI && aiBisa ? [...["Membaca tata letak dan format", "Memeriksa struktur dan judul bagian", "Menghitung kata, halaman, dan kata kunci", "Mencocokkan sitasi dengan daftar pustaka", "Memeriksa tabel dan gambar", "Menulis komentar ke naskah"], "AI menilai aturan isi dan Focus & Scope"] : ["Membaca tata letak dan format", "Memeriksa struktur dan judul bagian", "Menghitung kata, halaman, dan kata kunci", "Mencocokkan sitasi dengan daftar pustaka", "Memeriksa tabel dan gambar", "Menulis komentar ke naskah"]}
-                />
+                {aktif.progres?.tahap === "proses" ? (
+                  <Membaca
+                    ukuran="besar"
+                    judul={`Memeriksa ${aktif.berkas.name}`}
+                    sub={`Bot membaca naskah sesuai aturan template${pakaiAI && aiBisa ? ", lalu AI menilai substansinya" : ""}.`}
+                    langkah={pakaiAI && aiBisa ? LANGKAH_CEK_AI : LANGKAH_CEK}
+                  />
+                ) : (
+                  <Membaca ukuran="besar" judul={`Mengunggah ${aktif.berkas.name}`} sub="Naskah sedang dikirim ke server AutoJurnal." />
+                )}
+                <div className="mt-6">
+                  <ProgresUnggah progres={aktif.progres ?? null} labelProses={pakaiAI && aiBisa ? "Diperiksa bot dan AI" : "Diperiksa bot"} />
+                </div>
               </Kartu>
             ) : (
               <TerakhirDiperiksa muatUlang={putaran} />
