@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import IO, Callable
 
 from .anotasi import tulis_komentar
-from .docmodel import DocModel
+from .docmodel import DocModel, q
 from .katalog import aktif
 from .periksa import periksa
 from .profil import Profil
@@ -15,6 +15,15 @@ from .temuan import Temuan
 
 PemeriksaTambahan = Callable[[DocModel, Profil], list[Temuan]]
 PenilaiScope = Callable[[DocModel, Profil], dict]
+
+
+def _matikan_sematan_font(dm: DocModel) -> None:
+    """Matikan opsi Word "Embed fonts in the file" di salinan hasil cek. Bila dibiarkan, begitu reviewer menyimpan
+    ulang di Word, seluruh font (mis. Segoe UI Emoji, Calibri) ikut disematkan dan berkas 300 KB bisa menjadi 8 MB."""
+    setelan = dm.doc.settings.element
+    for tag in ("embedTrueTypeFonts", "embedSystemFonts", "saveSubsetFonts"):
+        for e in setelan.findall(q(tag)):
+            setelan.remove(e)
 
 
 def cek_naskah(
@@ -49,6 +58,7 @@ def cek_naskah(
     # kalimat yang dimatikan di menu Komentar tidak dilaporkan sama sekali
     temuan = [t for t in temuan if aktif(prof, t.kode)]
     daftar = tulis_komentar(dm, temuan, prof, nama_jurnal, penulis=penulis, pemeriksa=pemeriksa, scope=scope)
+    _matikan_sematan_font(dm)
     dm.doc.save(str(keluaran))
     # "masalah" = jenis masalah unik (kemunculan berulang dihitung satu), "kemunculan" = semua temuan
     unik: dict[str, Temuan] = {}

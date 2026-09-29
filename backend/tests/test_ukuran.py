@@ -97,3 +97,16 @@ def test_api_kecilkan_dan_unduh(tmp_path, template_docx):
         assert unduh.status_code == 200 and "_DICEK_kecil.docx" in unduh.headers["content-disposition"]
         assert len(unduh.content) < 1900 * 1024
         assert list(docx.Document(io.BytesIO(unduh.content)).comments)  # komentar hasil cek tetap ada
+
+
+def test_hasil_cek_tidak_menyematkan_font_saat_disimpan_ulang(template_docx, tmp_path):
+    """Naskah dengan opsi "Embed fonts in the file": salinan hasil cek harus sudah mematikan opsi itu."""
+    from app.engine.ekstrak import ekstrak_template
+    from app.engine.layanan import cek_naskah
+
+    naskah = tmp_path / "sematan.docx"
+    naskah.write_bytes(_naskah_besar(tmp_path, font_kb=5))
+    prof, _ = ekstrak_template(str(template_docx))
+    keluar = tmp_path / "hasil.docx"
+    cek_naskah(str(naskah), prof, "Uji", keluar)
+    assert b"embedTrueTypeFonts" not in zipfile.ZipFile(keluar).read("word/settings.xml")
